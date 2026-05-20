@@ -20,10 +20,10 @@
 > Este documento consolida todas as descobertas do Estágio 1.
 > Preencha cada seção com as conclusões do time. **Este é o input principal do Estágio 2** — sem ele, a especificação vira chute.
 
-**Time**: [Nome do Time]
-**Data**: 19/05/2026
-**Edição**:
-**Participantes**: [Liste os membros e suas personas]
+**Time**: workshop-rosa-02
+**Data**: 20/05/2026
+**Edição**: Dia 2 — Estágio 1 (Arqueologia)
+**Participantes**: Par 1 (Product Owner + Requirements Engineer) com apoio dos pares 2–5
 
 ---
 
@@ -32,7 +32,7 @@
 > Em 3 a 5 frases, resuma o que o time descobriu sobre o SIFAP legado.
 > O que é este sistema? Qual sua criticidade? Qual o estado do código?
 
-[Escreva aqui]
+O SIFAP legado é um sistema Natural/Adabas altamente orientado a regras de negócio e processamento em lote para pagamentos sociais. A criticidade é alta porque regras de elegibilidade, cálculo e conciliação estão espalhadas em 15 programas `.NSN` sem centralização formal. O código mostra dependências fortes por dados (DDMs compartilhados), mesmo sem `CALLNAT` explícito entre programas. Foram identificadas exceções históricas e constantes não documentadas que podem causar regressões financeiras e funcionais se não forem preservadas na modernização.
 
 ---
 
@@ -40,15 +40,15 @@
 
 ### 2.1 Propósito do SIFAP
 
-[Descreva o que o sistema faz com base na análise do código]
+Gerencia ciclo completo de benefícios sociais: cadastro de beneficiários e dependentes, cadastro de programas, validações documentais/elegibilidade, cálculo de pagamentos, descontos, correções retroativas, conciliação bancária e relatórios operacionais/auditoria.
 
 ### 2.2 Arquitetura Legada
 
-[Descreva a arquitetura: quantos programas, DDMs, fluxos principais]
+Arquitetura legada em Natural com persistência Adabas, composta por 15 programas e 4 DDMs (`BENEFICIARIO`, `PAGAMENTO`, `PROGRAMA-SOCIAL`, `AUDITORIA`). Não há cadeia de chamadas `CALLNAT`; o acoplamento principal ocorre por leitura/escrita compartilhada dos DDMs. Fluxo operacional dominante: `BATCHPGT` (geração) → `BATCHCON` (conciliação) → `BATCHREL` (consolidação relatório).
 
 ### 2.3 Usuários e Perfis
 
-[Quem usa o sistema? Quais perfis de acesso existem?]
+Perfis inferidos pelo código: operação de cadastro (atendimento), processamento batch financeiro, equipe de conciliação bancária, auditoria/controle interno e consumidores de relatórios de gestão.
 
 ---
 
@@ -58,31 +58,31 @@
 
 > Liste as 5 regras de negócio mais importantes encontradas.
 
-1. [Regra + referência ao catálogo BR-XXX]
-2.
-3.
-4.
-5.
+1. Limite de dependentes por beneficiário no cadastro operacional (`BR-004`).
+2. Reajuste de status para idosos no momento da inclusão (`BR-002`).
+3. Cálculo de benefício com fatores regionais/familiares/renda/idade (`BR-006` + evidências em `CALCBENF.NSN`).
+4. Elegibilidade automática para região especial `99` (`BR-010`).
+5. Desconto judicial fora do teto geral de 30% (`BR-006` + mistério `MYS-006`).
 
 ### 3.2 Dependências Complexas
 
 > Quais programas estão mais acoplados? Onde há risco de efeito cascata?
 
-[Descreva]
+Maior acoplamento em `PAGAMENTO` e `BENEFICIARIO`: programas de cálculo, batch, consulta e relatório compartilham os mesmos registros. Risco de efeito cascata alto em mudanças de status, arredondamento e campos monetários, porque afetam cálculo, conciliação e auditoria simultaneamente.
 
 ### 3.3 Dívida Técnica Identificada
 
 > Que problemas no código legado vão complicar a migração?
 
-- [ ] [Problema 1]
-- [ ] [Problema 2]
-- [ ] [Problema 3]
+- [x] Regras críticas dependem de constantes mágicas sem documentação (`0.347215`, `0.30`, fatores regionais).
+- [x] Estratégias de arredondamento/truncamento não uniformes entre programas.
+- [x] Exceções históricas no código (prefixos especiais, região 99, blocos legados comentados).
 
 ### 3.4 Gaps de Documentação
 
 > O que a documentação existente NÃO cobre?
 
-[Descreva]
+A documentação funcional não cobre exceções de domínio encontradas no código (ex.: região 99, filtro de exclusões em auditoria, regras específicas de dezembro). Também não explica origem de constantes financeiras e dependências operacionais por ordenação no batch.
 
 ---
 
@@ -94,15 +94,19 @@
 
 | ID  | Descrição | Risco para Migração |
 | --- | --------- | ------------------- |
-|     |           |                     |
+| MYS-003 | Constante de reajuste sem fonte documental (`0.347215`) | Erro em cálculo base de programas sociais |
+| MYS-005 | Truncamento sistemático em correção retroativa | Divergência acumulada de centavos |
+| MYS-006 | Desconto judicial fora do teto geral | Regressão jurídica/financeira |
+| MYS-008 | Elegibilidade automática da região 99 | Quebra de regra especial de domínio |
+| MYS-010 | Ação `EX` ocultada em relatório de auditoria | Perda de rastreabilidade e compliance |
 
 ### 4.2 Riscos para o Estágio 2
 
 > O que o time de especificação precisa saber antes de começar?
 
-1. [Risco 1]
-2. [Risco 2]
-3. [Risco 3]
+1. Preservar exceções explícitas de legado antes de generalizar regras (idade, região, prefixos especiais).
+2. Definir política única de arredondamento para evitar divergência entre cálculo, correção e relatório.
+3. Garantir rastreabilidade requisito↔evidência (`source_legacy`) para todas as EARS do Estágio 2.
 
 ---
 
@@ -114,21 +118,24 @@
 
 | Prioridade | Funcionalidade | Justificativa |
 | ---------- | -------------- | ------------- |
-| 1          |                |               |
-| 2          |                |               |
-| 3          |                |               |
+| 1          | Geração mensal de pagamentos (`BATCHPGT` + `CALCBENF`) | Núcleo de valor do sistema; impacto direto no beneficiário. |
+| 2          | Elegibilidade e validações (`VALELEG`, `VALBENEF`, `VALDOCS`) | Evita concessão indevida e preserva regras de conformidade. |
+| 3          | Conciliação e auditoria (`BATCHCON`, `RELAUDIT`) | Garante fechamento financeiro e trilha de controle. |
 
 ### 5.2 O que descartar
 
 > Funcionalidades que provavelmente não precisam ser migradas:
 
-- [Funcionalidade]: [Motivo para descartar]
+- Suporte a integração legada do Banco Real comentada em código: tecnologia descontinuada e sem uso operacional.
+- Campos de biometria marcados como "não implementado" no DDM (`HASH-DIGITAL`): manter fora do v1.
 
 ### 5.3 O que evoluir
 
 > Funcionalidades que devem ser migradas E melhoradas:
 
-- [Funcionalidade]: [Como melhorar]
+- Relatórios de auditoria: remover ocultação de eventos de exclusão ou torná-la parametrizável.
+- Política de arredondamento: padronizar entre cálculo mensal, correção retroativa e consolidação.
+- Regras especiais (região 99/prefixos): externalizar em configuração versionada e auditável.
 
 ---
 
@@ -136,14 +143,14 @@
 
 | Métrica                       | Valor        |
 | ----------------------------- | ------------ |
-| Programas analisados          | \_\_\_ / 15  |
-| DDMs mapeados                 | \_\_\_ / 4   |
-| Regras de negócio encontradas | \_\_\_       |
-| Regras escondidas encontradas | \_\_\_ / 10  |
-| Easter eggs encontrados       | \_\_\_ / 3   |
-| Termos no glossário           | \_\_\_       |
-| Mistérios catalogados         | \_\_\_       |
-| Tempo total gasto             | \_\_\_ horas |
+| Programas analisados          | 15 / 15       |
+| DDMs mapeados                 | 4 / 4         |
+| Regras de negócio encontradas | 15            |
+| Regras escondidas encontradas | 10 / 10       |
+| Easter eggs encontrados       | 3 / 3         |
+| Termos no glossário           | 30            |
+| Mistérios catalogados         | 10            |
+| Tempo total gasto             | 3.5 horas     |
 
 ---
 
@@ -151,16 +158,16 @@
 
 > Deixe aqui mensagens para o time no Estágio 2 (Especificação Moderna):
 
-[Escreva aqui]
+Para o Estágio 2, priorizar requisitos EARS vinculados ao fluxo de pagamento mensal e às exceções mapeadas em `mysteries-found.md`. Criar REQ-IDs específicos para arredondamento, descontos judiciais, região especial 99 e filtros de auditoria. Evitar decisões arquiteturais sem preservar a sequência operacional de batch e os estados de pagamento já usados por conciliação.
 
 ---
 
 ## Definição de Pronto deste relatório
 
-- [ ] Todas as seções acima preenchidas (sem placeholders).
-- [ ] Pelo menos 5 regras críticas listadas em §3.1, cada uma referenciando uma `BR-XXX` do catálogo.
-- [ ] Decisões de migrar/descartar/evoluir em §5 cobrem as 8+ funcionalidades principais.
-- [ ] Métricas de §6 conferem com os outros artefatos (glossary.md, business-rules-catalog.md, mysteries-found.md).
+- [x] Todas as seções acima preenchidas (sem placeholders).
+- [x] Pelo menos 5 regras críticas listadas em §3.1, cada uma referenciando uma `BR-XXX` do catálogo.
+- [x] Decisões de migrar/descartar/evoluir em §5 cobrem as 8+ funcionalidades principais.
+- [x] Métricas de §6 conferem com os outros artefatos (glossary.md, business-rules-catalog.md, mysteries-found.md).
 
 — Paula
 

@@ -46,21 +46,21 @@ O que NÃO conta: paginação de relatório, formatação de saída, manipulaç�
 
 | ID     | Regra de Negócio | Programa Fonte | Campos DDM | Nível de Risco | Notas |
 | ------ | ---------------- | -------------- | ---------- | -------------- | ----- |
-| BR-001 |                  |                |            |                |       |
-| BR-002 |                  |                |            |                |       |
-| BR-003 |                  |                |            |                |       |
-| BR-004 |                  |                |            |                |       |
-| BR-005 |                  |                |            |                |       |
-| BR-006 |                  |                |            |                |       |
-| BR-007 |                  |                |            |                |       |
-| BR-008 |                  |                |            |                |       |
-| BR-009 |                  |                |            |                |       |
-| BR-010 |                  |                |            |                |       |
-| BR-011 |                  |                |            |                |       |
-| BR-012 |                  |                |            |                |       |
-| BR-013 |                  |                |            |                |       |
-| BR-014 |                  |                |            |                |       |
-| BR-015 |                  |                |            |                |       |
+| BR-001 | Na inclusão (`OPER = I`), se já existir beneficiário com o mesmo CPF, a operação deve ser rejeitada. | `01-arqueologia/legado-sifap/natural-programs/CADBENEF.NSN#L143-L147` | `BENEFICIARIO.CPF`, `BENEFICIARIO.STATUS` | ALTO | Evita duplicidade cadastral no arquivo principal de beneficiários. |
+| BR-002 | Beneficiários com idade acima de 75 anos devem ter status ajustado para `S`, mesmo após definição inicial de status `A`. | `01-arqueologia/legado-sifap/natural-programs/CADBENEF.NSN#L163-L168` | `BENEFICIARIO.DT-NASCIMENTO`, `BENEFICIARIO.STATUS` | ALTO | Regra introduzida por ajuste de status idoso (anotação de alteração no cabeçalho do programa). |
+| BR-003 | Não é permitida inclusão de dependente para beneficiário com status `C` (cancelado) ou `D` (desligado). | `01-arqueologia/legado-sifap/natural-programs/CADDEPEND.NSN#L56-L59` | `BENEFICIARIO.STATUS`, `BENEFICIARIO.NUM-DEPENDENTES` | ALTO | Bloqueio de negócio antes do loop de inclusão de dependentes. |
+| BR-004 | Cada beneficiário pode ter no máximo 5 dependentes cadastrados; ao exceder, a inclusão deve ser interrompida. | `01-arqueologia/legado-sifap/natural-programs/CADDEPEND.NSN#L63-L66` | `BENEFICIARIO.NUM-DEPENDENTES`, `BENEFICIARIO.DEPENDENTES(PE)` | ALTO | Limite explícito de cardinalidade no grupo periódico de dependentes. |
+| BR-005 | Não é permitido cadastrar programa social com `COD-PROGRAMA` já existente. | `01-arqueologia/legado-sifap/natural-programs/CADPROG.NSN#L82-L84` | `PROGRAMA-SOCIAL.COD-PROGRAMA`, `PROGRAMA-SOCIAL.STATUS-PROG` | ALTO | Garante unicidade funcional do identificador do programa. |
+| BR-006 | O valor base persistido do programa deve ser recalculado por fator de reajuste: `VLR-CALC = VLR-BASE * (1 + FATOR-REAJ * 0.347215)`. | `01-arqueologia/legado-sifap/natural-programs/CADPROG.NSN#L87-L88` | `PROGRAMA-SOCIAL.VLR-BASE`, `PROGRAMA-SOCIAL.FATOR-REAJUSTE` | CRÍTICO | Regra de cálculo financeiro aplicada antes de gravar o programa. |
+| BR-007 | Quando UF é informada, ela deve existir na tabela de 27 UFs válidas; caso contrário, a validação cadastral falha. | `01-arqueologia/legado-sifap/natural-programs/VALBENEF.NSN#L145-L159` | `BENEFICIARIO.UF`, `BENEFICIARIO.STATUS` | MÉDIO | Regra de consistência territorial aplicada no cadastro do beneficiário. |
+| BR-008 | O status do beneficiário só pode assumir os valores `A`, `S`, `C`, `I` ou `D`; qualquer outro status torna o cadastro inválido. | `01-arqueologia/legado-sifap/natural-programs/VALBENEF.NSN#L164-L169` | `BENEFICIARIO.STATUS`, `BENEFICIARIO.CPF` | ALTO | Enumeração de status de domínio usada em múltiplos fluxos de validação. |
+| BR-009 | CPF com todos os dígitos iguais é inválido, exceto quando inicia com `000`, que é tratado como exceção válida de teste governamental. | `01-arqueologia/legado-sifap/natural-programs/VALBENEF.NSN#L195-L202` | `BENEFICIARIO.CPF`, `BENEFICIARIO.STATUS` | ALTO | Exceção explícita do legado com impacto direto na validação documental. |
+| BR-010 | Beneficiário da região `99` é automaticamente elegível e encerra a validação de elegibilidade como caso especial. | `01-arqueologia/legado-sifap/natural-programs/VALELEG.NSN#L107-L111` | `BENEFICIARIO.COD-REGIAO`, `BENEFICIARIO.COD-PROGRAMA` | ALTO | Regra especial de negócio para região internacional/diplomática. |
+| BR-011 | Programa social inativo (`STATUS-PROG != A`) não pode ser usado em validação de elegibilidade. | `01-arqueologia/legado-sifap/natural-programs/VALELEG.NSN#L99-L102` | `PROGRAMA-SOCIAL.STATUS-PROG`, `PROGRAMA-SOCIAL.COD-PROGRAMA` | ALTO | Bloqueio preventivo antes de avaliar critérios de elegibilidade do beneficiário. |
+| BR-012 | Para programas previdenciários (`TIPO = P`), o beneficiário deve ter idade mínima de 60 anos. | `01-arqueologia/legado-sifap/natural-programs/VALELEG.NSN#L183-L189` | `PROGRAMA-SOCIAL.TIPO`, `BENEFICIARIO.DT-NASCIMENTO` | ALTO | Regra etária específica por tipo de programa. |
+| BR-013 | Para programas de trabalho (`TIPO = T`), a idade elegível deve permanecer entre 16 e 65 anos. | `01-arqueologia/legado-sifap/natural-programs/VALELEG.NSN#L190-L196` | `PROGRAMA-SOCIAL.TIPO`, `BENEFICIARIO.DT-NASCIMENTO` | ALTO | Faixa etária obrigatória para concessão em programas laborais. |
+| BR-014 | RG informado deve possuir no mínimo 5 caracteres úteis; abaixo disso, o documento é inválido. | `01-arqueologia/legado-sifap/natural-programs/VALDOCS.NSN#L152-L162` | `BENEFICIARIO.RG`, `BENEFICIARIO.DOCUMENTOS-OK` | MÉDIO | Regra de qualidade mínima para documento civil no fluxo de validação. |
+| BR-015 | Se o CPF tiver prefixo especial cadastrado (`000`, `001`, `002`, `010`, `011`, `099`, `100`, `999`), o sistema marca documento especial como válido e limpa erros da validação. | `01-arqueologia/legado-sifap/natural-programs/VALDOCS.NSN#L168-L179` | `BENEFICIARIO.CPF`, `BENEFICIARIO.DOCUMENTOS-OK` | ALTO | Exceção de governança/teste que sobrescreve resultado padrão de validação documental. |
 
 > Adicione mais linhas conforme necessário. Lembre-se: existem **10 regras escondidas** no código!
 
@@ -90,10 +90,10 @@ O que NÃO conta: paginação de relatório, formatação de saída, manipulaç�
 
 ## Resumo Estatístico
 
-- Total de regras encontradas: \_\_\_
-- Regras críticas: \_\_\_
-- Regras com duplicação: \_\_\_
-- Regras sem documentação (escondidas): \_\_\_
+- Total de regras encontradas: 15
+- Regras críticas: 1
+- Regras com duplicação: 0
+- Regras sem documentação (escondidas): 3
 
 ---
 

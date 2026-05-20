@@ -1,0 +1,65 @@
+openapi: 3.0.3
+info:
+  title: SIFAP Cycle Generation API
+  version: 0.1.0
+paths:
+  /api/v1/payment-cycles:
+    post:
+      summary: Gera ciclo mensal de pagamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [competence]
+              properties:
+                competence:
+                  type: string
+                  pattern: '^\\d{6}$'
+                  example: '202605'
+      responses:
+        '201':
+          description: Ciclo iniciado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CycleExecution'
+        '409':
+          description: Ciclo já existente para a competência
+  /api/v1/payment-cycles/{cycleId}:
+    get:
+      summary: Consulta status da execução do ciclo
+      parameters:
+        - in: path
+          name: cycleId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Status da execução
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CycleExecution'
+        '404':
+          description: Ciclo não encontrado
+components:
+  schemas:
+    CycleExecution:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        competence:
+          type: string
+        status:
+          type: string
+          enum: [RUNNING, COMPLETED, FAILED]
+        generatedPayments:
+          type: integer
+        rejectedBeneficiaries:
+          type: integer

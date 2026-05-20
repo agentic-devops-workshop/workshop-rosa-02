@@ -32,38 +32,68 @@
 
 ```mermaid
 flowchart TD
- subgraph "Programas Online"
- CADBENF["CADBENF.NSN<br/>Cadastro de Beneficiários"]
- CONBENF["CONBENF.NSN<br/>Consulta de Beneficiários"]
- REGPGTO["REGPGTO.NSN<br/>Registro de Pagamentos"]
+ subgraph "Cadastro e Validação"
+ CADBENEF["CADBENEF.NSN"]
+ CADDEPEND["CADDEPEND.NSN"]
+ CADPROG["CADPROG.NSN"]
+ VALBENEF["VALBENEF.NSN"]
+ VALDOCS["VALDOCS.NSN"]
+ VALELEG["VALELEG.NSN"]
  end
 
- subgraph "Programas Batch"
- BATCHPGT["BATCHPGT.NSN<br/>Processamento em Lote"]
+ subgraph "Cálculo"
+ CALCBENF["CALCBENF.NSN"]
+ CALCDSCT["CALCDSCT.NSN"]
+ CALCCORR["CALCCORR.NSN"]
  end
 
- subgraph "Subprogramas"
- CALCBENF["CALCBENF.NSN<br/>Cálculo de Benefícios"]
- VALCPF["VALCPF.NSN<br/>Validação de CPF"]
+ subgraph "Batch"
+ BATCHPGT["BATCHPGT.NSN"]
+ BATCHCON["BATCHCON.NSN"]
+ BATCHREL["BATCHREL.NSN"]
+ end
+
+ subgraph "Consulta e Relatórios"
+ CONSBENF["CONSBENF.NSN"]
+ RELPGT["RELPGT.NSN"]
+ RELAUDIT["RELAUDIT.NSN"]
  end
 
  subgraph "DDMs Adabas"
- DDM_BENEF[("DDM: BENEFICIARIO")]
- DDM_PGTO[("DDM: PAGAMENTO")]
+ DDM_BENEF[("BENEFICIARIO.ddm")]
+ DDM_PAG[("PAGAMENTO.ddm")]
+ DDM_PROG[("PROGRAMA-SOCIAL.ddm")]
+ DDM_AUD[("AUDITORIA.ddm")]
  end
 
- CADBENF -->|CALLNAT| VALCPF
- CADBENF -->|CALLNAT| CALCBENF
- CADBENF -->|READ/STORE| DDM_BENEF
+ CADBENEF --> DDM_BENEF
+ CADDEPEND --> DDM_BENEF
+ VALBENEF --> DDM_BENEF
+ VALDOCS --> DDM_BENEF
+ CONSBENF --> DDM_BENEF
+ RELPGT --> DDM_BENEF
 
- REGPGTO -->|CALLNAT| CALCBENF
- REGPGTO -->|READ/STORE| DDM_PGTO
+ CADPROG --> DDM_PROG
+ VALELEG --> DDM_PROG
 
- CONBENF -->|READ| DDM_BENEF
+ CALCBENF --> DDM_BENEF
+ CALCBENF --> DDM_PROG
+ CALCBENF --> DDM_PAG
+ CALCDSCT --> DDM_BENEF
+ CALCDSCT --> DDM_PAG
+ CALCCORR --> DDM_PAG
 
- BATCHPGT -->|CALLNAT| CALCBENF
- BATCHPGT -->|READ/UPDATE| DDM_PGTO
- BATCHPGT -->|READ| DDM_BENEF
+ BATCHPGT --> DDM_BENEF
+ BATCHPGT --> DDM_PROG
+ BATCHPGT --> DDM_PAG
+ BATCHCON --> DDM_PAG
+ BATCHCON --> DDM_AUD
+ BATCHREL --> DDM_PAG
+ BATCHREL --> DDM_BENEF
+ RELAUDIT --> DDM_AUD
+
+ BATCHPGT -. ordem operacional .-> BATCHCON
+ BATCHCON -. ordem operacional .-> BATCHREL
 ```
 
 > **Instrução:** este é apenas um exemplo inicial com 6 programas.
@@ -73,28 +103,41 @@ flowchart TD
 
 ```mermaid
 flowchart LR
- subgraph "Entrada de Dados"
- UI["Terminal 3270"]
- BATCH["Arquivos Batch"]
+ subgraph "Entradas"
+ UI["Terminal Natural"]
+ RET["Arquivo CNAB 240"]
  end
 
  subgraph "Processamento"
- PROG["Programas Natural"]
+ CAD["Cadastro/Validação"]
+ CALC["Cálculo"]
+ BAT["Batch"]
+ REP["Consultas/Relatórios"]
  end
 
- subgraph "Armazenamento (Adabas)"
+ subgraph "Armazenamento Adabas"
  DDM1[("BENEFICIARIO")]
  DDM2[("PAGAMENTO")]
- DDM3[("DDM 3: ???")]
- DDM4[("DDM 4: ???")]
+ DDM3[("PROGRAMA-SOCIAL")]
+ DDM4[("AUDITORIA")]
  end
 
- UI --> PROG
- BATCH --> PROG
- PROG <--> DDM1
- PROG <--> DDM2
- PROG <--> DDM3
- PROG <--> DDM4
+ UI --> CAD
+ CAD --> CALC
+ CALC --> BAT
+ RET --> BAT
+ BAT --> REP
+
+ CAD <--> DDM1
+ CAD <--> DDM3
+ CALC <--> DDM1
+ CALC <--> DDM2
+ CALC <--> DDM3
+ BAT <--> DDM2
+ BAT <--> DDM4
+ REP <--> DDM1
+ REP <--> DDM2
+ REP <--> DDM4
 ```
 
 > Substitua "DDM 3: ???" e "DDM 4: ???" pelos nomes reais encontrados em [`../01-arqueologia/legado-sifap/adabas-ddms/`](../01-arqueologia/legado-sifap/adabas-ddms/).
@@ -103,33 +146,37 @@ flowchart LR
 
 | Programa     | Chama (CALLNAT) | Lê (READ) DDMs | Escreve (STORE/UPDATE) DDMs | Observações |
 | ------------ | --------------- | -------------- | --------------------------- | ----------- |
-| CADBENF.NSN  |                 |                |                             |             |
-| CONBENF.NSN  |                 |                |                             |             |
-| REGPGTO.NSN  |                 |                |                             |             |
-| BATCHPGT.NSN |                 |                |                             |             |
-| CALCBENF.NSN |                 |                |                             |             |
-| VALCPF.NSN   |                 |                |                             |             |
-|              |                 |                |                             |             |
-|              |                 |                |                             |             |
-|              |                 |                |                             |             |
-|              |                 |                |                             |             |
-|              |                 |                |                             |             |
-|              |                 |                |                             |             |
-|              |                 |                |                             |             |
-|              |                 |                |                             |             |
-|              |                 |                |                             |             |
+| BATCHCON.NSN | Nenhum | `PAGAMENTO`, `AUDITORIA` | `PAGAMENTO`, `AUDITORIA` | Concilia retorno bancário e grava trilha de auditoria. |
+| BATCHPGT.NSN | Nenhum | `BENEFICIARIO`, `PROGRAMA-SOCIAL`, `PAGAMENTO` | `PAGAMENTO` | Batch crítico mensal; ordenação por CPF é dependência downstream. |
+| BATCHREL.NSN | Nenhum | `PAGAMENTO`, `BENEFICIARIO` | — | Consolida relatórios por região/status. |
+| CADBENEF.NSN | Nenhum | `BENEFICIARIO` | `BENEFICIARIO` | Inclusão/alteração de beneficiário com validações básicas. |
+| CADDEPEND.NSN | Nenhum | `BENEFICIARIO` | `BENEFICIARIO` | Manipula grupo periódico de dependentes (PE). |
+| CADPROG.NSN | Nenhum | `PROGRAMA-SOCIAL` | `PROGRAMA-SOCIAL` | Cadastro de programas sociais e cálculo de valor ajustado. |
+| CALCBENF.NSN | Nenhum | `BENEFICIARIO`, `PROGRAMA-SOCIAL` | `PAGAMENTO` | Cálculo principal de benefício mensal. |
+| CALCCORR.NSN | Nenhum | `PAGAMENTO` | `PAGAMENTO` | Correção retroativa por índice IPCA. |
+| CALCDSCT.NSN | Nenhum | `PAGAMENTO`, `BENEFICIARIO` | `PAGAMENTO` | Aplica descontos por tipo e teto parcial. |
+| CONSBENF.NSN | Nenhum | `BENEFICIARIO`, `PAGAMENTO` | — | Consulta operacional de beneficiário e pagamentos. |
+| RELAUDIT.NSN | Nenhum | `AUDITORIA` | — | Relatório de trilha com filtros (exclui ação `EX`). |
+| RELPGT.NSN | Nenhum | `PAGAMENTO`, `BENEFICIARIO` | — | Relatório de pagamentos por período. |
+| VALBENEF.NSN | Nenhum | — | — | Rotina de validação de domínio (sem persistência direta). |
+| VALDOCS.NSN | Nenhum | — | — | Validação documental e regra de prefixos especiais. |
+| VALELEG.NSN | Nenhum | `BENEFICIARIO`, `PROGRAMA-SOCIAL` | — | Determina elegibilidade por regras de status, renda, idade e região. |
 
 ## Dependências Circulares
 
 > Liste aqui qualquer dependência circular encontrada (programa A chama B que chama A):
 
 - Nenhuma encontrada até agora.
+- Não há ciclos de `CALLNAT` (nenhum `CALLNAT` foi encontrado nos 15 programas).
+- O acoplamento ocorre principalmente por leitura/escrita compartilhada em `PAGAMENTO` e `BENEFICIARIO`.
 
 ## Programas Órfãos
 
 > Programas que não são chamados por nenhum outro (possíveis pontos de entrada ou código morto):
 
 - A investigar.
+- Sem `CALLNAT`, todos os programas funcionam como pontos de entrada independentes.
+- Dependências reais são de dados: sequência operacional observada `BATCHPGT` → `BATCHCON` → `BATCHREL`.
 
 ---
 

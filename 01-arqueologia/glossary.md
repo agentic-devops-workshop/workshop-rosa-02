@@ -41,36 +41,36 @@ Prompt útil no Copilot Chat (cole o conteúdo de 2–3 arquivos `.NSN` no chat 
 
 | #   | Termo | Expansão | Programa | Contexto |
 | --- | ----- | -------- | -------- | -------- |
-| 1   |       |          |          |          |
-| 2   |       |          |          |          |
-| 3   |       |          |          |          |
-| 4   |       |          |          |          |
-| 5   |       |          |          |          |
-| 6   |       |          |          |          |
-| 7   |       |          |          |          |
-| 8   |       |          |          |          |
-| 9   |       |          |          |          |
-| 10  |       |          |          |          |
-| 11  |       |          |          |          |
-| 12  |       |          |          |          |
-| 13  |       |          |          |          |
-| 14  |       |          |          |          |
-| 15  |       |          |          |          |
-| 16  |       |          |          |          |
-| 17  |       |          |          |          |
-| 18  |       |          |          |          |
-| 19  |       |          |          |          |
-| 20  |       |          |          |          |
-| 21  |       |          |          |          |
-| 22  |       |          |          |          |
-| 23  |       |          |          |          |
-| 24  |       |          |          |          |
-| 25  |       |          |          |          |
-| 26  |       |          |          |          |
-| 27  |       |          |          |          |
-| 28  |       |          |          |          |
-| 29  |       |          |          |          |
-| 30  |       |          |          |          |
+| 1   | `CPF` | Cadastro de Pessoa Física | `CADBENEF.NSN`, `VALBENEF.NSN`, `VALDOCS.NSN` | Identificador principal do beneficiário e chave de busca. |
+| 2   | `NIS` | Número de Identificação Social | `CADBENEF.NSN`, `VALELEG.NSN` | Exigido em regras específicas de elegibilidade. |
+| 3   | `UF` | Unidade Federativa | `CADBENEF.NSN`, `VALBENEF.NSN` | Validada contra tabela fixa de 27 estados. |
+| 4   | `CEP` | Código de Endereçamento Postal | `CADBENEF.NSN`, `VALBENEF.NSN` | Campo cadastral obrigatório para endereço. |
+| 5   | `COD-REGIAO` | Código de região geográfica | `CADBENEF.NSN`, `CALCBENF.NSN`, `VALELEG.NSN` | Determina fatores regionais e exceções de elegibilidade. |
+| 6   | `COMPETENCIA` | Referência de processamento `AAAAMM` | `CALCBENF.NSN`, `BATCHPGT.NSN`, `RELPGT.NSN` | Define mês/ano do pagamento processado. |
+| 7   | `VLR-BRUTO` | Valor bruto do benefício | `CALCBENF.NSN`, `CALCDSCT.NSN`, `BATCHREL.NSN` | Base para descontos e totais de relatório. |
+| 8   | `VLR-DESCONTO` | Soma de deduções aplicadas | `CALCDSCT.NSN`, `BATCHPGT.NSN`, `BATCHREL.NSN` | Subtraído do bruto para gerar líquido. |
+| 9   | `VLR-LIQUIDO` | Valor líquido a pagar | `CALCBENF.NSN`, `BATCHCON.NSN`, `RELPGT.NSN` | Valor efetivo conciliado com retorno bancário. |
+| 10  | `STATUS` | Situação cadastral do beneficiário | `CADBENEF.NSN`, `VALBENEF.NSN`, `VALELEG.NSN` | Estados `A/S/C/I/D` controlam elegibilidade e processamento. |
+| 11  | `STATUS-PGTO` | Situação do pagamento | `BATCHCON.NSN`, `BATCHREL.NSN`, `RELPGT.NSN` | Estados de geração, pagamento, devolução e estorno. |
+| 12  | `TIPO-PROG` | Tipo de programa social | `CADPROG.NSN`, `CALCBENF.NSN`, `VALELEG.NSN` | Define regras por domínio (`A`, `P`, `T`). |
+| 13  | `TIPO-PGTO` | Tipo de pagamento | `CALCBENF.NSN`, `BATCHPGT.NSN` | Diferencia normal, décimo e terceiro. |
+| 14  | `ABONO` | Valor adicional eventual | `CALCBENF.NSN`, `BATCHPGT.NSN` | Gratificação extra (ex.: abono natalino). |
+| 15  | `13O` | Décimo terceiro benefício | `CALCBENF.NSN`, `BATCHPGT.NSN` | Parcela extra processada em dezembro. |
+| 16  | `IPCA` | Índice de Preços ao Consumidor Amplo | `CALCCORR.NSN` | Índice mensal usado na correção retroativa. |
+| 17  | `IND-CORRIGIDO` | Indicador de pagamento já corrigido | `CALCCORR.NSN` | Evita recalcular correção no mesmo registro. |
+| 18  | `COD-ELEGIBILIDADE` | Código de regra específica de elegibilidade | `CADPROG.NSN`, `VALELEG.NSN` | Ativa validações adicionais (ex.: NIS/dependentes). |
+| 19  | `PCT-DSCT` | Percentual de desconto | `CALCDSCT.NSN` | Alternativa ao valor fixo no cálculo de deduções. |
+| 20  | `TIPO-DSCT` | Tipo de desconto | `CALCDSCT.NSN` | Classifica deduções (`J`, `P`, `I`, `S`, `A`). |
+| 21  | `PE` | Periodic Group (grupo periódico) | `CADDEPEND.NSN`, `CALCDSCT.NSN`, `BENEFICIARIO.ddm` | Estrutura repetitiva para dependentes e descontos. |
+| 22  | `MU` | Multiple Value (campo multivalorado) | `BENEFICIARIO.ddm` | Convenção Adabas para múltiplos valores por campo. |
+| 23  | `DDM` | Data Definition Module | `adabas-ddms/*.ddm` | Define estrutura física/lógica dos arquivos Adabas. |
+| 24  | `FDT` | Field Definition Table | `BENEFICIARIO.ddm` | Tabela técnica de campos/formatos do arquivo Adabas. |
+| 25  | `CNAB 240` | Layout bancário de retorno/pagamento | `BATCHCON.NSN` | Formato de conciliação com arquivo de banco. |
+| 26  | `COD-RETORNO` | Código de retorno bancário | `BATCHCON.NSN` | Determina atualização de status pós-conciliação. |
+| 27  | `NUM-PAGTO` | Número sequencial do pagamento | `CALCBENF.NSN`, `BATCHCON.NSN` | Chave operacional para localizar transações. |
+| 28  | `ACAO` | Tipo de evento de auditoria | `BATCHCON.NSN`, `RELAUDIT.NSN` | Classifica inclusão, alteração, conciliação e divergência. |
+| 29  | `CHAVE-REF` | Chave de referência auditada | `BATCHCON.NSN`, `RELAUDIT.NSN` | Identifica objeto afetado no evento de auditoria. |
+| 30  | `SIT-BENEFICIARIO` | Situação do benefício no DDM | `BENEFICIARIO.ddm`, `VALBENEF.NSN` | Mapeia estado de negócio persistido do beneficiário. |
 
 > Adicione mais linhas conforme necessário. Não se limite a 30!
 
@@ -83,8 +83,15 @@ Prompt útil no Copilot Chat (cole o conteúdo de 2–3 arquivos `.NSN` no chat 
 ## Observações
 
 - Anote aqui qualquer padrão de nomenclatura que o time identificou:
+- Prefixo `VLR-` para valores monetários e `DT-` para datas.
+- Prefixo `COD-` para chaves de domínio e tabelas de referência.
+- Sufixo `-V` para views Natural ligadas aos DDMs.
 - Convenções de prefixo/sufixo encontradas:
+- Variáveis de trabalho locais com `#` (ex.: `#VLR-BRUTO`, `#COD-REG`).
+- Campos de arquivo em caixa alta com hífen (ex.: `STATUS-PGTO`, `NUM-PAGTO`).
 - Termos ambíguos que precisam de validação com especialista:
+- Diferença operacional entre estados `I` (inativo) e `D` (desligado).
+- Uso de códigos especiais de região (`99`) e sua governança.
 
 ---
 
