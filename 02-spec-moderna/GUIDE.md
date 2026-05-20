@@ -172,11 +172,11 @@ Compare lado a lado — o vago vs o EARS testável:
 
 Ao escrever um requisito, pergunte: _"Como eu testaria isso automaticamente?"_ Se não souber responder, o requisito está vago demais.
 
-| Requisito                                                                         | Teste                                   |
-| --------------------------------------------------------------------------------- | --------------------------------------- |
-| REQ-BEN-01: "O SIFAP deve validar CPF com módulo 11"                              | CPF inválido retorna erro 400           |
-| REQ-PAY-03: "Quando um ciclo for gerado, criar pagamentos para beneficiários ACTIVE" | 10 ativos + 2 suspensos = 10 pagamentos |
-| REQ-AUD-01: "O SIFAP não deve permitir DELETE em auditoria"                       | DELETE retorna erro 403                 |
+| Requisito                                                                            | Teste                                   |
+| ------------------------------------------------------------------------------------ | --------------------------------------- |
+| REQ-BEN-001: "O SIFAP deve validar CPF com módulo 11"                                | CPF inválido retorna erro 400           |
+| REQ-PAY-005: "Quando um ciclo for gerado, criar pagamentos para beneficiários ACTIVE" | 10 ativos + 2 suspensos = 10 pagamentos |
+| REQ-AUD-001: "O SIFAP não deve permitir DELETE em auditoria"                         | DELETE retorna erro 403                 |
 
 ---
 

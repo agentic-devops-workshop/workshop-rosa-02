@@ -23,6 +23,7 @@ Este documento cobre os 4 bounded contexts do SIFAP 2.0:
 | `payment`     | P0 (núcleo de valor) | REQ-PAY-001 a REQ-PAY-005 |
 | `admin`       | P1 (via programas)  | REQ-ADM-001 a REQ-ADM-004 |
 | `audit`       | P1 (via compliance) | REQ-AUD-001 a REQ-AUD-002 |
+| `security`    | P0 (cross-cutting greenfield) | REQ-SEC-001 |
 
 **Fora de escopo v1.0:** integração com SIAFI, relatórios analíticos avançados,
 biometria (campos `HASH-DIGITAL` não implementados no legado), integração Banco Real descontinuada.
@@ -152,45 +153,60 @@ REQ-BEN-006:
 
 ## Contexto: `payment`
 
-### REQ-PAY-001 · Teto de 30% para descontos não judiciais
+### REQ-PAY-001 · Teto de 30% para descontos (fórmula confirmada)
 
 ```yaml
 REQ-PAY-001:
   pattern: unwanted
-  text: "O SIFAP não deve permitir que a soma dos descontos de tipos
-         não-judiciais exceda 30% do valor bruto do pagamento."
-  source_legacy: 01-arqueologia/legado-sifap/natural-programs/CALCDSCT.NSN#L136-L145
+  text: "O SIFAP não deve permitir que o total acumulado de descontos exceda
+         30% do VLR-BRUTO no momento em que um desconto não-judicial for processado.
+         O cap é calculado sobre o BRUTO INTEGRAL (não sobre bruto-judicial) e
+         o truncamento dispara apenas em itens com TIPO-DSCT ≠ 'J'."
+  source_legacy: 01-arqueologia/legado-sifap/natural-programs/CALCDSCT.NSN#L102,#L160-L165
   business_rule: BR-006
   mystery_ref: MYS-006
+  formula:
+    teto: "VLR-MAX-DSCT = VLR-BRUTO × 0.30  (cap sobre BRUTO INTEGRAL)"
+    aplicacao: "if TIPO-DSCT ≠ 'J' and VLR-TOTAL-DSCT > VLR-MAX-DSCT → VLR-TOTAL-DSCT := VLR-MAX-DSCT"
   acceptance:
-    - "Dado pagamento bruto R$ 1.000 e desconto tipo TAX de R$ 400
-       → desconto aplicado é truncado em R$ 300 (30%)."
-    - "Dado pagamento bruto R$ 1.000 e desconto tipo JUDICIAL de R$ 800
-       → desconto aplicado é R$ 800 integralmente (sem teto)."
-    - "Dado soma de descontos não-judiciais exatamente em 30% → aceito sem truncamento."
+    - "Bruto R$ 1.000 + não-judicial R$ 400 → trunca em R$ 300 (30% do bruto integral)."
+    - "Bruto R$ 1.000 + soma não-judicial exata de R$ 300 → aceito sem truncamento."
+    - "Bruto R$ 1.000 + não-judicial R$ 250 → acumulado permanece R$ 250."
   priority: P0
   risk: CRÍTICO
+  note: "Fórmula extraída diretamente de CALCDSCT.NSN#L102 (#VLR-MAX-DSCT = #VLR-BRUTO * 0.30).
+         O cap NUNCA é calculado sobre 'bruto-judicial' — sempre sobre o bruto integral.
+         Ver REQ-PAY-002 para interação com judicial e efeito ordem-dependente."
 ```
 
-### REQ-PAY-002 · Desconto judicial sem teto
+### REQ-PAY-002 · Desconto judicial e efeito ordem-dependente
 
 ```yaml
 REQ-PAY-002:
   pattern: event-driven
-  text: "Quando um desconto do tipo JUDICIAL (J) for aplicado a um pagamento,
-         o SIFAP deve adicionar o valor integralmente ao total de descontos,
-         sem aplicar o teto de 30%."
-  source_legacy: 01-arqueologia/legado-sifap/natural-programs/CALCDSCT.NSN#L181-L186
+  text: "Quando um desconto do tipo JUDICIAL (J) for processado, o SIFAP deve
+         somá-lo a VLR-TOTAL-DSCT sem disparar a verificação de teto naquele item.
+         O teto só é verificado em itens com TIPO-DSCT ≠ 'J' e é aplicado sobre
+         o acumulado total (que pode incluir judicial já somado)."
+  source_legacy: 01-arqueologia/legado-sifap/natural-programs/CALCDSCT.NSN#L160-L165
   business_rule: BR-006
   mystery_ref: MYS-006
   acceptance:
-    - "Desconto judicial de 80% do valor bruto é aceito sem truncamento."
-    - "Múltiplos descontos judiciais somam sem limite de teto."
-    - "Combinação de desconto judicial + não-judicial: apenas o não-judicial é limitado a 30%."
+    - "Único desconto J=R$ 800 em bruto R$ 1.000 → total R$ 800 (sem aplicação de teto)."
+    - "Múltiplos judiciais (J=R$ 400 + J=R$ 200) em bruto R$ 1.000 → total R$ 600 (judiciais nunca disparam cap)."
+    - "Bruto R$ 1.000 + I=R$ 200 (1º) + J=R$ 500 (2º) → total R$ 700 (cap não disparou em I=200 ≤ 300; J entra livre)."
+    - "Bruto R$ 1.000 + J=R$ 500 (1º) + I=R$ 100 (2º) → total R$ 300 (acumulado=600 ao processar I, não-J e > 300, trunca; paridade legada)."
   priority: P0
   risk: CRÍTICO
-  note: "Regra legal diferenciada (MYS-006). Tratar como bug causaria retenção indevida
-         e passivo jurídico. Crítico para conformidade legal."
+  note: |
+    DESCOBERTA NA INVESTIGAÇÃO DA FÓRMULA (RE/Par 1, 20/05/2026):
+    O legado tem comportamento ordem-dependente não documentado: a ordem de iteração
+    do PE-GROUP em CALCDSCT.NSN#L107 (FOR #IDX = 1 TO C*DESCONTOS) determina o resultado
+    final quando há mistura de judicial + não-judicial. Modernizar com ordenação estável
+    por (DT-INICIO-DSCT, ordem-de-inserção) para paridade histórica.
+    
+    Decisão do PO: preservar paridade no v1.0. Discutir com jurídico se v1.1 deve
+    sempre excluir judicial do acumulado de cap (mudança de comportamento, requer ADR).
 ```
 
 ### REQ-PAY-003 · Décimo terceiro e abono natalino em dezembro
@@ -399,6 +415,36 @@ REQ-AUD-002:
 
 ---
 
+## Contexto: `security`
+
+### REQ-SEC-001 · Autenticação de API via JWT/OAuth2
+
+```yaml
+REQ-SEC-001:
+  pattern: ubiquitous
+  text: "O SIFAP deve autenticar todas as chamadas da API REST por meio de token JWT válido
+         emitido por provedor OAuth2 corporativo, validando assinatura, expiração e escopo
+         em toda requisição."
+  source_legacy: "[GREENFIELD] O legado usa sessão de terminal Natural; a API moderna
+                  requer autenticação stateless interoperável com SSO corporativo."
+  acceptance:
+    - "Dado token JWT válido com escopo correspondente ao endpoint,
+       quando a API for chamada → requisição autorizada (200/201/204 conforme verbo)."
+    - "Dado ausência de header Authorization ou token inválido (assinatura incorreta, expirado),
+       quando a API for chamada → retorno 401 com Problem Details (RFC 7807)."
+    - "Dado token válido mas sem escopo necessário,
+       quando a API for chamada → retorno 403 com mensagem 'Insufficient scope'."
+    - "Tokens expirados ou inválidos NÃO devem aparecer mascarados em logs;
+       apenas o subject e o claim 'iss' podem ser logados para auditoria."
+  priority: P0
+  risk: CRÍTICO
+  note: "Cross-cutting concern obrigatório para v1. Implementação via Spring Security 6
+         + Resource Server. Provedor de identidade definido em ADR-004 (a ser criado pelo Par 2).
+         Eventos de autenticação falha devem gerar registro em audit_event (REQ-AUD-001)."
+```
+
+---
+
 ## Rastreabilidade Consolidada
 
 | REQ-ID | Bounded Context | BR/MYS de origem | Padrão EARS | Prioridade |
@@ -420,9 +466,10 @@ REQ-AUD-002:
 | REQ-ADM-004 | admin | BR-006, MYS-003 | Event-driven | P1 |
 | REQ-AUD-001 | audit | AUDITORIA.ddm | Ubiquitous | P0 |
 | REQ-AUD-002 | audit | MYS-010 | Ubiquitous | P1 |
+| REQ-SEC-001 | security | [GREENFIELD] | Ubiquitous | P0 |
 
-**Total: 17 REQ-IDs** (mínimo exigido: 12 ✅)
-**REQ-IDs P0 (críticos):** REQ-BEN-001, REQ-PAY-001, REQ-PAY-002, REQ-PAY-003, REQ-PAY-005, REQ-AUD-001
+**Total: 18 REQ-IDs** (mínimo exigido: 12 ✅)
+**REQ-IDs P0 (críticos):** REQ-BEN-001, REQ-PAY-001, REQ-PAY-002, REQ-PAY-003, REQ-PAY-005, REQ-AUD-001, REQ-SEC-001
 
 ---
 

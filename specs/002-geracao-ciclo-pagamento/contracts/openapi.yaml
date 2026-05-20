@@ -1,16 +1,12 @@
 openapi: 3.0.3
 info:
-  title: SIFAP 2.0 — Payment Cycle API
+  title: SIFAP Cycle Generation API
   version: 0.2.0
   description: |
-    API de geração e consulta de ciclos de pagamento do SIFAP 2.0.
-    Baseada em ADR-001 (modular monolith), ADR-003 (audit append-only),
-    ADR-004 (parametrização de constantes), ADR-005 (determinismo de
-    descontos), ADR-006 (contratos e identificadores). Erros seguem
-    Problem Details RFC 7807.
-servers:
-  - url: http://localhost:8080
-    description: Dev local
+    Convenções:
+    - IDs são UUID (formato `uuid` em todos os endpoints).
+    - Competência em ISO 8601 `YYYY-MM` (ex.: `2026-05`). Convertida internamente para `YearMonth`/DATE.
+    - Erros seguem RFC 7807 (Problem Details).
 paths:
   /api/v1/payment-cycles:
     post:
@@ -25,7 +21,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreatePaymentCycleRequest'
+              type: object
+              required: [competence]
+              properties:
+                competence:
+                  type: string
+                  pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+                  example: '2026-05'
+                  description: Competência em formato ISO 8601 YYYY-MM (REQ-PAY-001).
       responses:
         '201':
           description: Ciclo iniciado
@@ -80,101 +83,26 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/payments:
+          description: Ciclo não encontrado
+  /api/v1/payment-cycles/{cycleId}/payments/{paymentId}:
     get:
-      summary: Lista pagamentos de um ciclo
-      description: |
-        REQ-PAY-005: pagamentos retornados em ordem de CPF ascendente.
-      operationId: listPayments
+      summary: Consulta pagamento com split de descontos
       parameters:
-        - in: query
+        - in: path
           name: cycleId
           required: true
-          schema:
-            type: string
-            format: uuid
+          schema: { type: string, format: uuid }
+        - in: path
+          name: paymentId
+          required: true
+          schema: { type: string, format: uuid }
       responses:
         '200':
-          description: Lista de pagamentos do ciclo
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Payment'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/payments/{paymentId}/discounts:
-    post:
-      summary: Aplica descontos a um pagamento
-      description: |
-        REQ-PAY-001: cap de 30% do valor bruto sobre o subtotal não-judicial.
-        REQ-PAY-002: descontos judiciais não sofrem cap.
-        REQ-PAY-006 (ADR-005): cálculo determinístico — resultado independe
-        da ordem dos itens informados.
-      operationId: applyPaymentDiscounts
-      parameters:
-        - $ref: '#/components/parameters/PaymentIdPath'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/DiscountRequest'
-      responses:
-        '200':
-          description: Pagamento atualizado com descontos aplicados
+          description: Pagamento detalhado com itens de desconto
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Payment'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
-
-  /api/v1/payments/{paymentId}/corrections:
-    post:
-      summary: Aplica correção retroativa ao valor bruto
-      description: |
-        REQ-PAY-004: truncamento BigDecimal RoundingMode.DOWN para preservar
-        paridade legada.
-      operationId: applyPaymentCorrection
-      parameters:
-        - $ref: '#/components/parameters/PaymentIdPath'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CorrectionRequest'
-      responses:
-        '200':
-          description: Pagamento corrigido
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Payment'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
-
 components:
   parameters:
     YearMonthQuery:
@@ -249,21 +177,8 @@ components:
           format: uuid
         yearMonth:
           type: string
-          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
           example: '2026-05'
-        startedAt:
-          type: string
-          format: date-time
-        finishedAt:
-          type: string
-          format: date-time
-          nullable: true
-        generatedPayments:
-          type: integer
-          minimum: 0
-        rejectedBeneficiaries:
-          type: integer
-          minimum: 0
         status:
           type: string
           enum: [RUNNING, COMPLETED, FAILED]
@@ -368,36 +283,39 @@ components:
           example: 'Discount cap exceeded'
         status:
           type: integer
-          example: 422
-        detail:
+    Payment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        cycleExecutionId: { type: string, format: uuid }
+        competence:
           type: string
-          example: 'Non-judicial discounts exceed 30% of gross amount.'
-        instance:
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        grossAmount: { type: number, format: 'decimal' }
+        totalDiscountAmount: { type: number, format: 'decimal' }
+        netAmount: { type: number, format: 'decimal' }
+        status:
           type: string
-          format: uri-reference
-          example: '/api/v1/payments/8a47ec19-3a0c-4f2c-9c74-2c6a8f4f4a91/discounts'
-        traceId:
-          type: string
-          example: '00-3a8c91f5-…'
-        violations:
+          enum: [GENERATED, PAID, RETURNED, REVERSED]
+        discounts:
           type: array
           items:
-            type: object
-            required: [field, message]
-            properties:
-              field:
-                type: string
-                example: 'amount'
-              message:
-                type: string
-                example: 'must be positive'
-
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: REQ-SEC-001 — JWT emitido por OAuth2 corporativo
-
-security:
-  - bearerAuth: []
+            $ref: '#/components/schemas/PaymentDiscount'
+          description: Itens de desconto na ordem de processamento legada (REQ-PAY-002).
+    PaymentDiscount:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        discountType:
+          type: string
+          enum: [J, P, I, S, A, T, E, O]
+          description: J=judicial, P=pensão, I=imposto, S=sindical, A=administrativo, T=taxa, E=empréstimo, O=outros.
+        amount: { type: number, format: 'decimal' }
+        percentage: { type: number, format: 'decimal', nullable: true }
+        processingOrder:
+          type: integer
+          description: Ordem estável preservando iteração do PE-GROUP legado (CALCDSCT.NSN#L107).
+        capApplied:
+          type: boolean
+          description: true quando o truncamento do teto de 30% disparou neste item.
