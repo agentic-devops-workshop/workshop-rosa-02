@@ -27,3 +27,9 @@ infra
 
 # Logs
 *.log
+
+# Java build
+target/
+.gradle/
+build/
+*.class
