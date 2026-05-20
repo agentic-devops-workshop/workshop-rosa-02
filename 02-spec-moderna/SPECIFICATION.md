@@ -23,6 +23,7 @@ Este documento cobre os 4 bounded contexts do SIFAP 2.0:
 | `payment`     | P0 (núcleo de valor) | REQ-PAY-001 a REQ-PAY-005 |
 | `admin`       | P1 (via programas)  | REQ-ADM-001 a REQ-ADM-004 |
 | `audit`       | P1 (via compliance) | REQ-AUD-001 a REQ-AUD-002 |
+| `security`    | P0 (cross-cutting greenfield) | REQ-SEC-001 |
 
 **Fora de escopo v1.0:** integração com SIAFI, relatórios analíticos avançados,
 biometria (campos `HASH-DIGITAL` não implementados no legado), integração Banco Real descontinuada.
@@ -399,6 +400,36 @@ REQ-AUD-002:
 
 ---
 
+## Contexto: `security`
+
+### REQ-SEC-001 · Autenticação de API via JWT/OAuth2
+
+```yaml
+REQ-SEC-001:
+  pattern: ubiquitous
+  text: "O SIFAP deve autenticar todas as chamadas da API REST por meio de token JWT válido
+         emitido por provedor OAuth2 corporativo, validando assinatura, expiração e escopo
+         em toda requisição."
+  source_legacy: "[GREENFIELD] O legado usa sessão de terminal Natural; a API moderna
+                  requer autenticação stateless interoperável com SSO corporativo."
+  acceptance:
+    - "Dado token JWT válido com escopo correspondente ao endpoint,
+       quando a API for chamada → requisição autorizada (200/201/204 conforme verbo)."
+    - "Dado ausência de header Authorization ou token inválido (assinatura incorreta, expirado),
+       quando a API for chamada → retorno 401 com Problem Details (RFC 7807)."
+    - "Dado token válido mas sem escopo necessário,
+       quando a API for chamada → retorno 403 com mensagem 'Insufficient scope'."
+    - "Tokens expirados ou inválidos NÃO devem aparecer mascarados em logs;
+       apenas o subject e o claim 'iss' podem ser logados para auditoria."
+  priority: P0
+  risk: CRÍTICO
+  note: "Cross-cutting concern obrigatório para v1. Implementação via Spring Security 6
+         + Resource Server. Provedor de identidade definido em ADR-004 (a ser criado pelo Par 2).
+         Eventos de autenticação falha devem gerar registro em audit_event (REQ-AUD-001)."
+```
+
+---
+
 ## Rastreabilidade Consolidada
 
 | REQ-ID | Bounded Context | BR/MYS de origem | Padrão EARS | Prioridade |
@@ -420,9 +451,10 @@ REQ-AUD-002:
 | REQ-ADM-004 | admin | BR-006, MYS-003 | Event-driven | P1 |
 | REQ-AUD-001 | audit | AUDITORIA.ddm | Ubiquitous | P0 |
 | REQ-AUD-002 | audit | MYS-010 | Ubiquitous | P1 |
+| REQ-SEC-001 | security | [GREENFIELD] | Ubiquitous | P0 |
 
-**Total: 17 REQ-IDs** (mínimo exigido: 12 ✅)
-**REQ-IDs P0 (críticos):** REQ-BEN-001, REQ-PAY-001, REQ-PAY-002, REQ-PAY-003, REQ-PAY-005, REQ-AUD-001
+**Total: 18 REQ-IDs** (mínimo exigido: 12 ✅)
+**REQ-IDs P0 (críticos):** REQ-BEN-001, REQ-PAY-001, REQ-PAY-002, REQ-PAY-003, REQ-PAY-005, REQ-AUD-001, REQ-SEC-001
 
 ---
 
