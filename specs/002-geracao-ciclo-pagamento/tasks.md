@@ -12,6 +12,16 @@
   - mistura judicial + não judicial.
 - Evidência: testes passam em `PaymentServiceTest`.
 
+### T01b — Testes de fator K (antes do código)
+- Criar testes para `REQ-ADM-004` em `ProgramServiceTest` e `PaymentCalculationTest`.
+- Cenários mínimos:
+  - FATOR-REAJ=0.10 + CONSTANTE_K=0.347215 → fator_k=1.0347215;
+  - FATOR-REAJ=0 ou nulo → fator_k=1.00;
+  - update de FATOR-REAJ gera `audit_event` PROGRAM_K_UPDATED;
+  - leitura de CONSTANTE_K via `admin.factor_constants` (não hardcoded);
+  - VLR-BASE-AJUSTADO usado em `PaymentCycleService` (integra com REQ-PAY-001).
+- Evidência: testes verdes com Testcontainers + PostgreSQL.
+
 ### T02 — Testes de elegibilidade especial
 - Criar testes para `REQ-PAY-002`.
 - Cenários mínimos:
@@ -30,6 +40,15 @@
 ### T04 — Implementar domínio de geração de ciclo
 - Implementar `PaymentCycleService` para `REQ-PAY-001`.
 - Persistir `CycleExecution` com métricas de gerados e rejeitados.
+- **Pré-requisito:** T03b concluído (VLR-BASE-AJUSTADO disponível).
+
+### T03b — Migration + domínio do fator K
+- Criar migration Flyway `V<seq>__create_admin_factor_constants.sql`:
+  - tabela `admin.factor_constants(key TEXT PK, value NUMERIC(7,6), updated_at TIMESTAMPTZ)`;
+  - seed com `('CONSTANTE_K', 0.347215)` para paridade legada.
+- Adicionar coluna `vlr_base_ajustado NUMERIC(15,2)` em `social_program`.
+- Implementar `ProgramKCalculator` (`BigDecimal` + `RoundingMode.DOWN`) para `REQ-ADM-004`.
+- Disparar `audit_event` PROGRAM_K_UPDATED em toda mudança de FATOR-REAJ.
 
 ### T05 — Implementar API REST
 - Criar `POST /api/v1/payment-cycles` e `GET /api/v1/payment-cycles/{cycleId}` conforme `contracts/openapi.yaml`.

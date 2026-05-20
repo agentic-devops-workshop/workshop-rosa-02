@@ -7,6 +7,7 @@ Esta spec transforma descobertas do Estágio 1 em requisitos EARS testáveis par
 
 ## Escopo
 - Inclusão: geração mensal de pagamentos, aplicação de regras de elegibilidade e desconto, validações cadastrais críticas.
+- Inclusão: cálculo do fator K (correção especial do programa social) usado como base do valor de pagamento — REQ-ADM-004 é pré-condição financeira do ciclo.
 - Inclusão: autenticação de API com JWT/OAuth2 para proteger os endpoints do ciclo.
 - Exclusão: UX avançada e integrações bancárias legadas descontinuadas.
 
@@ -55,6 +56,26 @@ REQ-PAY-004:
     - "Dado valor bruto de 1000 e desconto judicial de 500, quando o cálculo for executado, então o desconto judicial aplicado deve ser 500."
     - "Dado desconto judicial de 200 e não judicial de 400 em valor bruto 1000, quando o cálculo for executado, então o total final de desconto deve ser 500."
   priority: P0
+```
+
+```yaml
+REQ-ADM-004:
+  pattern: event-driven
+  text: "Quando um programa social for cadastrado ou tiver seu FATOR-REAJ atualizado, o SIFAP deverá calcular o fator de correção especial (fator K) pela fórmula `fator_k = 1.00 + (FATOR-REAJ × CONSTANTE_K)` e persistir o VLR-BASE-AJUSTADO = VLR-BASE × fator_k, usado como base de cálculo de todo pagamento subsequente."
+  source_legacy:
+    - 01-arqueologia/legado-sifap/natural-programs/CADPROG.NSN#L86-L92
+    - 01-arqueologia/legado-sifap/adabas-ddms/PROGRAMA-SOCIAL.ddm#L39
+  business_rule: BR-006
+  mystery_ref: MYS-003
+  acceptance:
+    - "Dada CONSTANTE_K=0.347215 (valor legado) e FATOR-REAJ=0.10, quando o programa for cadastrado, então fator_k deve ser 1.0347215 e VLR-BASE-AJUSTADO = VLR-BASE × 1.0347215 truncado a 2 casas (RoundingMode.DOWN)."
+    - "Dado FATOR-REAJ=0.00 ou nulo, quando o programa for cadastrado, então fator_k deve ser 1.00 e VLR-BASE-AJUSTADO = VLR-BASE."
+    - "Dado FATOR-REAJ atualizado em programa existente, quando o cadastro for salvo, então fator_k e VLR-BASE-AJUSTADO devem ser recalculados e um audit_event do tipo PROGRAM_K_UPDATED deve ser registrado com valor anterior e novo."
+    - "Dada CONSTANTE_K configurada via tabela admin.factor_constants (não hardcoded), quando o serviço iniciar, então o valor deve ser lido da configuração e o range deve ser validado entre 0.10 e 0.99."
+    - "Dado pagamento gerado pelo ciclo (REQ-PAY-001), quando o valor base for calculado, então deve usar VLR-BASE-AJUSTADO do programa associado (não o VLR-BASE bruto)."
+  priority: P0
+  risk: CRÍTICO
+  note: "Constante mágica 0.347215 documentada em CADPROG.NSN#L87 sem origem documental (MYS-003). PO determinou parametrização com paridade histórica via Flyway. Pré-condição financeira para REQ-PAY-001: sem fator K aplicado, todos os pagamentos do ciclo divergem do legado."
 ```
 
 ```yaml
@@ -117,5 +138,6 @@ REQ-SEC-001:
 
 ## Rastreabilidade
 - Baseado em `01-arqueologia/discovery-report.md` (prioridades do Estágio 2).
-- Baseado em `01-arqueologia/business-rules-catalog.md` (BR-001 a BR-015).
-- Baseado em `01-arqueologia/mysteries-found.md` (exceções regionais e de desconto).
+- Baseado em `01-arqueologia/business-rules-catalog.md` (BR-001 a BR-015, com ênfase em BR-006 para fator K).
+- Baseado em `01-arqueologia/mysteries-found.md` (MYS-003 fator K, MYS-006 desconto judicial, MYS-008 região 99).
+- Referência ao master `02-spec-moderna/SPECIFICATION.md` v0.2.0 (sign-off PO 20/05/2026).
