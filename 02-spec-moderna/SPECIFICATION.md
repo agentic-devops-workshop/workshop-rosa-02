@@ -21,7 +21,7 @@ Este documento cobre os 4 bounded contexts do SIFAP 2.0:
 |---------------|--------------------|-------------------|
 | `beneficiary` | P1 (via elegibilidade) | REQ-BEN-001 a REQ-BEN-006 |
 | `payment`     | P0 (núcleo de valor) | REQ-PAY-001 a REQ-PAY-005 |
-| `admin`       | P1 (via programas)  | REQ-ADM-001 a REQ-ADM-003 |
+| `admin`       | P1 (via programas)  | REQ-ADM-001 a REQ-ADM-004 |
 | `audit`       | P1 (via compliance) | REQ-AUD-001 a REQ-AUD-002 |
 
 **Fora de escopo v1.0:** integração com SIAFI, relatórios analíticos avançados,
@@ -324,6 +324,36 @@ REQ-ADM-003:
          regra configurável e auditada, não hardcoded."
 ```
 
+### REQ-ADM-004 · Ajuste do valor base do programa pelo FATOR-K
+
+```yaml
+REQ-ADM-004:
+  pattern: event-driven
+  text: "Quando um novo programa social for cadastrado,
+         o SIFAP deve calcular e persistir o valor base ajustado
+         aplicando a fórmula: VLR-BASE-AJUSTADO = VLR-BASE-INPUT × (1.00 + FATOR-REAJ × 0.347215)."
+  source_legacy: 01-arqueologia/legado-sifap/natural-programs/CADPROG.NSN#L86-L88
+  business_rule: BR-006
+  mystery_ref: MYS-003
+  acceptance:
+    - "Dado VLR-BASE-INPUT = 500.00 e FATOR-REAJ = 0.10
+       → FATOR-K = 1.00 + (0.10 × 0.347215) = 1.0347215
+       → VLR-BASE gravado = 500.00 × 1.0347215 = 517.36 (truncado 2 casas)."
+    - "Dado FATOR-REAJ = 0.00 → VLR-BASE gravado = VLR-BASE-INPUT (sem ajuste)."
+    - "O campo VLR-BASE retornado pela API GET /api/v1/admin/programs/{id}
+       deve refletir o valor já ajustado, não o valor bruto informado."
+    - "O valor 0.347215 deve ser externalizável via configuração de sistema
+       (chave FATOR_K_CONSTANTE), para permitir auditoria e eventual correção
+       sem necessidade de recompilação."
+  priority: P1
+  risk: CRÍTICO
+  note: "MYS-003: constante 0.347215 sem origem documental, inserida em ago/2008 por solicitação
+         da SENARC. O legado grava VLR-CALC (ajustado) no campo VLR-BASE do DDM PROGRAMA-SOCIAL
+         (linha MOVE #VLR-CALC TO PROGRAMA-V.VLR-BASE, CADPROG.NSN#L92).
+         Qualquer migração que use o VLR-BASE bruto como entrada de cálculo de benefício
+         produzirá valores errados para todos os programas com FATOR-REAJ != 0."
+```
+
 ---
 
 ## Contexto: `audit`
@@ -387,10 +417,11 @@ REQ-AUD-002:
 | REQ-ADM-001 | admin | BR-005 | Unwanted | P1 |
 | REQ-ADM-002 | admin | BR-012, BR-013 | Complex | P1 |
 | REQ-ADM-003 | admin | BR-010, MYS-008 | Event-driven | P1 |
+| REQ-ADM-004 | admin | BR-006, MYS-003 | Event-driven | P1 |
 | REQ-AUD-001 | audit | AUDITORIA.ddm | Ubiquitous | P0 |
 | REQ-AUD-002 | audit | MYS-010 | Ubiquitous | P1 |
 
-**Total: 16 REQ-IDs** (mínimo exigido: 12 ✅)
+**Total: 17 REQ-IDs** (mínimo exigido: 12 ✅)
 **REQ-IDs P0 (críticos):** REQ-BEN-001, REQ-PAY-001, REQ-PAY-002, REQ-PAY-003, REQ-PAY-005, REQ-AUD-001
 
 ---
