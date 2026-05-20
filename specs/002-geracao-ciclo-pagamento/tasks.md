@@ -7,10 +7,13 @@
 ### T01 — Testes de regra de desconto (antes do código)
 - Criar testes de serviço para `REQ-PAY-003` e `REQ-PAY-004`.
 - Cenários mínimos:
+  - cap = 30% × VLR-BRUTO (bruto integral, não bruto-judicial);
   - não judicial > 30% é truncado;
-  - judicial sem teto;
-  - mistura judicial + não judicial.
-- Evidência: testes passam em `PaymentServiceTest`.
+  - judicial puro sem teto;
+  - **ordem judicial → não-judicial**: J=500 + I=100 em bruto=1000 → total=300 (cap em I trunca acumulado total);
+  - **ordem não-judicial → judicial**: I=200 + J=500 em bruto=1000 → total=700 (cap não dispara em I=200; J livre);
+  - paridade de ordenação do PE-GROUP por (DT-INICIO-DSCT, ordem-de-inserção).
+- Evidência: testes passam em `PaymentServiceTest` com snapshot dos 4 cenários ordem-dependentes.
 
 ### T01b — Testes de fator K (antes do código)
 - Criar testes para `REQ-ADM-004` em `ProgramServiceTest` e `PaymentCalculationTest`.

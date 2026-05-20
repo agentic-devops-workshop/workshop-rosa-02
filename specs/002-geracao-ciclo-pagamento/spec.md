@@ -39,23 +39,41 @@ REQ-PAY-002:
 ```yaml
 REQ-PAY-003:
   pattern: unwanted
-  text: "O SIFAP não deverá permitir que a soma de descontos não judiciais ultrapasse 30% do valor bruto do pagamento."
-  source_legacy: 01-arqueologia/legado-sifap/natural-programs/CALCDSCT.NSN#L142-L148
+  text: "O SIFAP não deverá permitir que o total acumulado de descontos (incluindo judiciais previamente somados) exceda 30% do VLR-BRUTO no momento em que um desconto não judicial for processado; quando o teto for atingido, o total deve ser truncado para 30% × VLR-BRUTO."
+  source_legacy: 01-arqueologia/legado-sifap/natural-programs/CALCDSCT.NSN#L102,#L160-L165
+  business_rule: BR-006
+  formula:
+    teto: "VLR-MAX-DSCT = VLR-BRUTO × 0.30  (cap calculado sobre o BRUTO INTEGRAL, não sobre bruto-judicial)"
+    aplicacao: "truncamento dispara apenas quando TIPO-DSCT ≠ 'J' e VLR-TOTAL-DSCT (acumulado) > VLR-MAX-DSCT"
   acceptance:
-    - "Dado valor bruto de 1000 e descontos não judiciais totalizando 350, quando o cálculo for executado, então o total de descontos não judiciais deve ser limitado a 300."
-    - "Dado descontos não judiciais totalizando 250 para valor bruto 1000, quando o cálculo for executado, então o total deve permanecer 250."
+    - "Dado VLR-BRUTO=1000 e descontos não judiciais somando 350, quando o cálculo for executado, então VLR-TOTAL-DSCT deve ser truncado para 300 (= 1000 × 0.30)."
+    - "Dado VLR-BRUTO=1000 e descontos não judiciais somando 250, quando o cálculo for executado, então VLR-TOTAL-DSCT deve permanecer 250."
+    - "Dado VLR-BRUTO=1000 com desconto I=200 processado antes de J=500, quando o cálculo for executado, então VLR-TOTAL-DSCT final deve ser 700 (cap não disparou em I=200; J entra livre depois)."
+    - "Dado VLR-BRUTO=1000 com desconto J=500 processado antes de I=100, quando o cálculo for executado, então VLR-TOTAL-DSCT final deve ser 300 (paridade legada: o cap aplicado em I trunca também o judicial já acumulado)."
   priority: P0
+  note: |
+    Fórmula extraída de CALCDSCT.NSN#L102 (cap = bruto × 0.30) e #L160-L165 (truncamento
+    aplicado apenas quando o item corrente é não judicial, sobre acumulado total).
+    O 4º critério documenta um efeito ordem-dependente do legado: a ordem de processamento
+    dos descontos no PE-GROUP de BENEFICIARIO altera o resultado final.
+    Decisão de modernização (REQ-PAY-007 a criar pelo PO/RE): preservar paridade no v1.0
+    e propor refatorável para v1.1 após alinhamento jurídico (judicial deveria ser
+    sempre excluído do cômputo do cap, mas isso muda comportamento histórico).
 ```
 
 ```yaml
 REQ-PAY-004:
   pattern: event-driven
-  text: "Quando houver desconto judicial no pagamento, o SIFAP deverá aplicar o valor judicial sem teto de 30% e somá-lo ao total de descontos para composição do valor líquido."
-  source_legacy: 01-arqueologia/legado-sifap/natural-programs/CALCDSCT.NSN#L181-L186
+  text: "Quando um desconto do tipo judicial (TIPO-DSCT='J') for processado, o SIFAP deverá somá-lo a VLR-TOTAL-DSCT sem disparar a verificação do teto de 30% naquele item; o teto só é verificado em itens com TIPO-DSCT ≠ 'J'."
+  source_legacy: 01-arqueologia/legado-sifap/natural-programs/CALCDSCT.NSN#L160-L165
+  business_rule: BR-006
+  mystery_ref: MYS-006
   acceptance:
-    - "Dado valor bruto de 1000 e desconto judicial de 500, quando o cálculo for executado, então o desconto judicial aplicado deve ser 500."
-    - "Dado desconto judicial de 200 e não judicial de 400 em valor bruto 1000, quando o cálculo for executado, então o total final de desconto deve ser 500."
+    - "Dado VLR-BRUTO=1000 e único desconto J=500, quando o cálculo for executado, então VLR-TOTAL-DSCT deve ser 500 (sem aplicação de teto)."
+    - "Dado VLR-BRUTO=1000 com J=200 + I=400 processados em sequência (J primeiro), quando o cálculo for executado, então VLR-TOTAL-DSCT final deve ser 300 (J=200 acumula livre; I=400 → acumulado=600 > 300 → trunca a 300; comportamento legado)."
+    - "Dado VLR-BRUTO=1000 com I=400 + J=200 processados em sequência (I primeiro), quando o cálculo for executado, então VLR-TOTAL-DSCT final deve ser 500 (I=400 → acumulado=400 > 300 → trunca a 300; J=200 entra livre depois → 500)."
   priority: P0
+  note: "Ordem de iteração do PE-GROUP em CALCDSCT.NSN#L107 (FOR #IDX = 1 TO C*DESCONTOS) preserva ordem de inserção no Adabas. No moderno, garantir ordenação estável por (DT-INICIO-DSCT, ordem de inserção) para paridade."
 ```
 
 ```yaml
