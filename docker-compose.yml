@@ -20,7 +20,7 @@ services:
 
   backend:
     build:
-      context: ./prototype/backend
+      context: .
       dockerfile: Dockerfile
     container_name: sifap-backend
     environment:
@@ -45,7 +45,7 @@ services:
 
   frontend:
     build:
-      context: ./prototype/frontend
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: sifap-frontend
     environment:
