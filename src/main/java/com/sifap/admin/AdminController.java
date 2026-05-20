@@ -32,4 +32,11 @@ public class AdminController {
     public List<SocialProgram> list() {
         return service.listAll();
     }
+
+    /** REQ-ADM-004 (acceptance #3): atualiza FATOR-REAJ e recalcula factor_k + adjusted_base_value. */
+    @PatchMapping("/{id}/adjustment-factor")
+    public SocialProgram updateAdjustmentFactor(@PathVariable Long id,
+                                                @RequestBody AdjustmentFactorUpdate body) {
+        return service.updateAdjustmentFactor(id, body.adjustmentFactor());
+    }
 }

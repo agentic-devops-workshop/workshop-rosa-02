@@ -2,9 +2,7 @@ package com.sifap.admin;
 
 import com.sifap.audit.AuditService;
 import com.sifap.beneficiary.Beneficiary;
-import com.sifap.common.MoneyUtils;
 import com.sifap.common.exceptions.BusinessException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,17 +13,16 @@ import java.time.Period;
 @Service
 public class AdminService {
 
-    /** REQ-ADM-004 (MYS-003): constante FATOR-K externalizável. */
-    private final BigDecimal fatorKConstant;
     private final SocialProgramRepository repository;
     private final AuditService audit;
+    private final FactorConstantService factorConstantService;
 
     public AdminService(SocialProgramRepository repository,
                         AuditService audit,
-                        @Value("${sifap.admin.fator-k:0.347215}") BigDecimal fatorKConstant) {
+                        FactorConstantService factorConstantService) {
         this.repository = repository;
         this.audit = audit;
-        this.fatorKConstant = fatorKConstant;
+        this.factorConstantService = factorConstantService;
     }
 
     /** REQ-ADM-001 + REQ-ADM-004. */
@@ -36,22 +33,64 @@ public class AdminService {
             throw BusinessException.conflict("COD-PROGRAMA já cadastrado");
         }
 
-        // REQ-ADM-004: VLR-BASE-AJUSTADO = VLR-BASE-INPUT × (1.00 + FATOR-REAJ × 0.347215).
-        BigDecimal factor = req.adjustmentFactor() == null ? BigDecimal.ZERO : req.adjustmentFactor();
-        BigDecimal multiplier = BigDecimal.ONE.add(factor.multiply(fatorKConstant));
-        BigDecimal adjusted = MoneyUtils.truncate2(req.baseValueInput().multiply(multiplier));
+        // REQ-ADM-004: persistir BASE bruto + factor_k + adjusted_base_value.
+        BigDecimal constantK = factorConstantService.getConstantK();
+        ProgramKCalculator.Result k = ProgramKCalculator.compute(
+                req.baseValueInput(), req.adjustmentFactor(), constantK);
 
         SocialProgram p = new SocialProgram();
         p.setCode(req.code());
         p.setName(req.name());
         p.setType(req.type());
-        p.setBaseValue(adjusted);
+        p.setBaseValue(req.baseValueInput());
+        p.setAdjustmentFactor(req.adjustmentFactor());
+        p.setFactorK(k.factorK());
+        p.setAdjustedBaseValue(k.adjustedBaseValue());
         p.setActive(true);
         SocialProgram saved = repository.save(p);
 
         audit.record("SocialProgram", String.valueOf(saved.getId()), "IN",
-                null, "{\"code\":\"" + saved.getCode() + "\",\"baseValue\":" + adjusted + "}",
+                null,
+                "{\"code\":\"" + saved.getCode()
+                        + "\",\"baseValue\":" + saved.getBaseValue()
+                        + ",\"adjustmentFactor\":" + saved.getAdjustmentFactor()
+                        + ",\"factorK\":" + saved.getFactorK()
+                        + ",\"adjustedBaseValue\":" + saved.getAdjustedBaseValue() + "}",
                 "FATOR_K_APPLIED", null);
+        return saved;
+    }
+
+    /**
+     * REQ-ADM-004 — acceptance #3: atualização de FATOR-REAJ recalcula factor_k
+     * e adjusted_base_value, e emite audit_event PROGRAM_K_UPDATED com antes/depois.
+     */
+    @Transactional
+    public SocialProgram updateAdjustmentFactor(Long programId, BigDecimal newFactor) {
+        SocialProgram p = repository.findById(programId)
+                .orElseThrow(() -> BusinessException.notFound("Programa não encontrado"));
+
+        BigDecimal previousFactor = p.getAdjustmentFactor();
+        BigDecimal previousAdjusted = p.getAdjustedBaseValue();
+        BigDecimal previousK = p.getFactorK();
+
+        BigDecimal constantK = factorConstantService.getConstantK();
+        ProgramKCalculator.Result k = ProgramKCalculator.compute(
+                p.getBaseValue(), newFactor, constantK);
+
+        p.setAdjustmentFactor(newFactor);
+        p.setFactorK(k.factorK());
+        p.setAdjustedBaseValue(k.adjustedBaseValue());
+        SocialProgram saved = repository.save(p);
+
+        String before = "{\"adjustmentFactor\":" + previousFactor
+                + ",\"factorK\":" + previousK
+                + ",\"adjustedBaseValue\":" + previousAdjusted + "}";
+        String after = "{\"adjustmentFactor\":" + saved.getAdjustmentFactor()
+                + ",\"factorK\":" + saved.getFactorK()
+                + ",\"adjustedBaseValue\":" + saved.getAdjustedBaseValue() + "}";
+
+        audit.record("SocialProgram", String.valueOf(saved.getId()), "AL",
+                before, after, "PROGRAM_K_UPDATED", null);
         return saved;
     }
 

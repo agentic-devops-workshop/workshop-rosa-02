@@ -63,7 +63,8 @@ public class PaymentService {
             p.setBeneficiaryCpf(b.getCpf());
             p.setProgramId(program.getId());
             p.setCycle(cycle.toString()); // YYYY-MM
-            BigDecimal gross = program.getBaseValue();
+            // REQ-ADM-004 acceptance #5: usar VLR-BASE-AJUSTADO (factor K aplicado), não o bruto.
+            BigDecimal gross = program.effectivePaymentBase();
             p.setGrossAmount(MoneyUtils.truncate2(gross));
 
             // REQ-PAY-003: dezembro + programa tipo A (assistencial).
