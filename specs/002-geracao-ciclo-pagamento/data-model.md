@@ -55,6 +55,11 @@
 - `cap_applied`: boolean DEFAULT false (true quando truncamento de teto disparou neste item)
 - UNIQUE(`payment_id`, `processing_order`)
 
+### Estratégia de índice para escala
+- Confirmar com Par 2 (Architect) e Par 4 (DBA) a estratégia de índice de `payment_discount` para carga alvo de 3.8M registros/mês.
+- Índice mínimo obrigatório: `payment_discount(payment_id, processing_order)` (o `UNIQUE` já deve atender este padrão de acesso).
+- Validar plano de execução para leitura de descontos por pagamento em ordem estável de processamento.
+
 ### CycleExecution
 - `id`: UUID (PK)
 - `competence`: DATE UNIQUE

@@ -4,6 +4,15 @@
 
 ## Ordem de execução
 
+### T00 — Alinhamento técnico B4 (gate curto antes do código)
+- Validar com Par 3 (TL/Dev) e Par 4 (DBA) o pacote B4 já consolidado em `research.md`:
+  - `UUID` como padrão em contratos e entidades do ciclo;
+  - competência em `YYYY-MM` na API com conversão de fronteira;
+  - endpoint em `/api/v1/payment-cycles`;
+  - split de descontos em `payment_discount` 1:N com `processing_order`.
+- Par 2 (Architect): confirmar índices de `payment_discount(payment_id, processing_order)` para 3.8M registros/mês.
+- Registrar no PR de implementação referência explícita ao B4 para rastreabilidade de decisão.
+
 ### T01 — Testes de regra de desconto (antes do código)
 - Criar testes de serviço para `REQ-PAY-003` e `REQ-PAY-004`.
 - Cenários mínimos:

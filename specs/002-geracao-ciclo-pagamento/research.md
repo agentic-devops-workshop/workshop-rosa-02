@@ -4,6 +4,17 @@
 
 ## Decisões Investigadas
 
+### B4. Pacote de decisões de contrato e modelagem (Par 2 · Software Architect)
+
+| Tema | Decisão B4 | Dono | Dependências e impacto |
+|------|------------|------|------------------------|
+| IDs (`UUID` x `Long`) | Padronizar `UUID` em contratos e entidades do ciclo; `Long` não é exposto em API. | Par 2 · Software Architect | EA referenda consistência arquitetural; Par 3 ajusta refactor de DTO/entidade; Par 4 valida tipo e índices em migration. |
+| Competência (`AAAAMM` x `YYYY-MM`) | API usa `YYYY-MM` (ISO), com conversão de fronteira para modelo interno baseado em `YearMonth`/`DATE`. | Par 2 · Software Architect | Par 3 implementa serializer/deserializer; Par 4 garante coluna e conversão em migration sem ambiguidade. |
+| Path do endpoint | Manter padrão REST versionado em `/api/v1/payment-cycles`. | Par 2 · Software Architect | EA referenda padrão de naming; Par 3 ajusta controller/roteamento; contrato OpenAPI permanece estável. |
+| Split de descontos | Modelagem 1:N em `payment_discount`, preservando ordem de processamento para aderência legada e compliance. | Par 2 · Software Architect | Par 2 (Architect) deve confirmar índices `payment_discount(payment_id, processing_order)` para escala de 3.8M registros/mês; Par 4 impactado diretamente na migration; Par 3 impactado no refactor de cálculo/agregação; PO ciente por exigência de compliance. |
+
+**Status:** consolidado para implementação no Estágio 3.
+
 ### 1. Como tratar descontos judiciais
 - Opções:
   - A) Aplicar teto único de 30% para todos os descontos.
