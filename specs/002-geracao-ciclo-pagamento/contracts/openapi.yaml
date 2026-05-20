@@ -1,7 +1,12 @@
 openapi: 3.0.3
 info:
   title: SIFAP Cycle Generation API
-  version: 0.1.0
+  version: 0.2.0
+  description: |
+    Convenções:
+    - IDs são UUID (formato `uuid` em todos os endpoints).
+    - Competência em ISO 8601 `YYYY-MM` (ex.: `2026-05`). Convertida internamente para `YearMonth`/DATE.
+    - Erros seguem RFC 7807 (Problem Details).
 paths:
   /api/v1/payment-cycles:
     post:
@@ -16,8 +21,9 @@ paths:
               properties:
                 competence:
                   type: string
-                  pattern: '^\\d{6}$'
-                  example: '202605'
+                  pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+                  example: '2026-05'
+                  description: Competência em formato ISO 8601 YYYY-MM (REQ-PAY-001).
       responses:
         '201':
           description: Ciclo iniciado
@@ -46,6 +52,25 @@ paths:
                 $ref: '#/components/schemas/CycleExecution'
         '404':
           description: Ciclo não encontrado
+  /api/v1/payment-cycles/{cycleId}/payments/{paymentId}:
+    get:
+      summary: Consulta pagamento com split de descontos
+      parameters:
+        - in: path
+          name: cycleId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: path
+          name: paymentId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Pagamento detalhado com itens de desconto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
 components:
   schemas:
     CycleExecution:
@@ -56,6 +81,8 @@ components:
           format: uuid
         competence:
           type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          example: '2026-05'
         status:
           type: string
           enum: [RUNNING, COMPLETED, FAILED]
@@ -63,3 +90,39 @@ components:
           type: integer
         rejectedBeneficiaries:
           type: integer
+    Payment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        cycleExecutionId: { type: string, format: uuid }
+        competence:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        grossAmount: { type: number, format: 'decimal' }
+        totalDiscountAmount: { type: number, format: 'decimal' }
+        netAmount: { type: number, format: 'decimal' }
+        status:
+          type: string
+          enum: [GENERATED, PAID, RETURNED, REVERSED]
+        discounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentDiscount'
+          description: Itens de desconto na ordem de processamento legada (REQ-PAY-002).
+    PaymentDiscount:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        discountType:
+          type: string
+          enum: [J, P, I, S, A, T, E, O]
+          description: J=judicial, P=pensão, I=imposto, S=sindical, A=administrativo, T=taxa, E=empréstimo, O=outros.
+        amount: { type: number, format: 'decimal' }
+        percentage: { type: number, format: 'decimal', nullable: true }
+        processingOrder:
+          type: integer
+          description: Ordem estável preservando iteração do PE-GROUP legado (CALCDSCT.NSN#L107).
+        capApplied:
+          type: boolean
+          description: true quando o truncamento do teto de 30% disparou neste item.
