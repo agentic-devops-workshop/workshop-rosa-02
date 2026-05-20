@@ -1,23 +1,31 @@
 openapi: 3.0.3
 info:
-  title: SIFAP Cycle Generation API
-  version: 0.1.0
+  title: SIFAP 2.0 — Payment Cycle API
+  version: 0.2.0
+  description: |
+    API de geração e consulta de ciclos de pagamento do SIFAP 2.0.
+    Baseada em ADR-001 (modular monolith), ADR-003 (audit append-only),
+    ADR-004 (parametrização de constantes), ADR-005 (determinismo de
+    descontos), ADR-006 (contratos e identificadores). Erros seguem
+    Problem Details RFC 7807.
+servers:
+  - url: http://localhost:8080
+    description: Dev local
 paths:
   /api/v1/payment-cycles:
     post:
-      summary: Gera ciclo mensal de pagamento
+      summary: Inicia execução de ciclo mensal de pagamento
+      description: |
+        REQ-PAY-005: cria pagamentos apenas para beneficiários com status
+        ACTIVE, ordenados por CPF ascendente. REQ-PAY-003: em dezembro com
+        programa tipo A, calcula 13º + abono natalino.
+      operationId: createPaymentCycle
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [competence]
-              properties:
-                competence:
-                  type: string
-                  pattern: '^\\d{6}$'
-                  example: '202605'
+              $ref: '#/components/schemas/CreatePaymentCycleRequest'
       responses:
         '201':
           description: Ciclo iniciado
@@ -25,18 +33,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CycleExecution'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '409':
           description: Ciclo já existente para a competência
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+    get:
+      summary: Lista ciclos por competência
+      operationId: listPaymentCycles
+      parameters:
+        - $ref: '#/components/parameters/YearMonthQuery'
+      responses:
+        '200':
+          description: Lista de execuções de ciclo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CycleExecution'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/v1/payment-cycles/{cycleId}:
     get:
       summary: Consulta status da execução do ciclo
+      operationId: getPaymentCycle
       parameters:
-        - in: path
-          name: cycleId
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/CycleIdPath'
       responses:
         '200':
           description: Status da execução
@@ -44,22 +77,327 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CycleExecution'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
-          description: Ciclo não encontrado
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/payments:
+    get:
+      summary: Lista pagamentos de um ciclo
+      description: |
+        REQ-PAY-005: pagamentos retornados em ordem de CPF ascendente.
+      operationId: listPayments
+      parameters:
+        - in: query
+          name: cycleId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lista de pagamentos do ciclo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Payment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/payments/{paymentId}/discounts:
+    post:
+      summary: Aplica descontos a um pagamento
+      description: |
+        REQ-PAY-001: cap de 30% do valor bruto sobre o subtotal não-judicial.
+        REQ-PAY-002: descontos judiciais não sofrem cap.
+        REQ-PAY-006 (ADR-005): cálculo determinístico — resultado independe
+        da ordem dos itens informados.
+      operationId: applyPaymentDiscounts
+      parameters:
+        - $ref: '#/components/parameters/PaymentIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/DiscountRequest'
+      responses:
+        '200':
+          description: Pagamento atualizado com descontos aplicados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /api/v1/payments/{paymentId}/corrections:
+    post:
+      summary: Aplica correção retroativa ao valor bruto
+      description: |
+        REQ-PAY-004: truncamento BigDecimal RoundingMode.DOWN para preservar
+        paridade legada.
+      operationId: applyPaymentCorrection
+      parameters:
+        - $ref: '#/components/parameters/PaymentIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrectionRequest'
+      responses:
+        '200':
+          description: Pagamento corrigido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
 components:
+  parameters:
+    YearMonthQuery:
+      in: query
+      name: yearMonth
+      required: true
+      description: Competência ISO 8601 (YYYY-MM). ADR-006 § D-B.
+      schema:
+        type: string
+        pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+        example: '2026-05'
+    CycleIdPath:
+      in: path
+      name: cycleId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PaymentIdPath:
+      in: path
+      name: paymentId
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Requisição malformada
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Unauthorized:
+      description: Token JWT ausente ou inválido (REQ-SEC-001)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    UnprocessableEntity:
+      description: Violação de regra de domínio
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
   schemas:
+    CreatePaymentCycleRequest:
+      type: object
+      required: [yearMonth, programId]
+      properties:
+        yearMonth:
+          type: string
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+          example: '2026-05'
+        programId:
+          type: string
+          format: uuid
+
     CycleExecution:
       type: object
+      required: [id, yearMonth, status]
       properties:
         id:
           type: string
           format: uuid
-        competence:
+        yearMonth:
           type: string
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+          example: '2026-05'
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        generatedPayments:
+          type: integer
+          minimum: 0
+        rejectedBeneficiaries:
+          type: integer
+          minimum: 0
         status:
           type: string
           enum: [RUNNING, COMPLETED, FAILED]
-        generatedPayments:
+
+    Payment:
+      type: object
+      required:
+        - id
+        - cycleId
+        - beneficiaryId
+        - beneficiaryCpfMasked
+        - yearMonth
+        - grossAmount
+        - judicialDiscountAmount
+        - nonJudicialDiscountAmount
+        - totalDiscountAmount
+        - netAmount
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        cycleId:
+          type: string
+          format: uuid
+        beneficiaryId:
+          type: string
+          format: uuid
+        beneficiaryCpfMasked:
+          description: CPF mascarado XXX.XXX.NNN-NN (copilot-instructions)
+          type: string
+          example: 'XXX.XXX.789-01'
+        yearMonth:
+          type: string
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+          example: '2026-05'
+        grossAmount:
+          type: string
+          description: BigDecimal serializado como string para evitar perda de precisão
+          example: '1500.00'
+        judicialDiscountAmount:
+          type: string
+          example: '500.00'
+        nonJudicialDiscountAmount:
+          description: Já com cap REQ-PAY-001 aplicado (ADR-005 — ordem-independente)
+          type: string
+          example: '300.00'
+        totalDiscountAmount:
+          description: judicialDiscountAmount + nonJudicialDiscountAmount
+          type: string
+          example: '800.00'
+        thirteenth:
+          type: string
+          description: REQ-PAY-003 — preenchido apenas em dezembro programa tipo A
+          example: '0.00'
+        christmasBonus:
+          type: string
+          description: REQ-PAY-003 — 15% (parametrizado por ADR-004)
+          example: '0.00'
+        netAmount:
+          type: string
+          example: '700.00'
+        status:
+          type: string
+          enum: [GENERATED, PAID, RETURNED, REVERSED]
+
+    DiscountRequest:
+      type: object
+      required: [type, amount]
+      properties:
+        type:
+          type: string
+          enum: [J, TAX, PENSION, OTHER]
+          description: J = Judicial (sem cap, REQ-PAY-002); demais sofrem cap REQ-PAY-001
+        amount:
+          type: string
+          example: '250.00'
+          description: BigDecimal positivo serializado como string
+
+    CorrectionRequest:
+      type: object
+      required: [factor]
+      properties:
+        factor:
+          type: string
+          example: '0.0473'
+          description: Multiplicador a aplicar ao grossAmount (REQ-PAY-004)
+
+    ProblemDetails:
+      description: |
+        Erro em formato Problem Details (RFC 7807). Tipos definidos pelo
+        SIFAP listados em /docs/error-types.md.
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          example: 'https://sifap.gov.br/errors/discount-cap-exceeded'
+        title:
+          type: string
+          example: 'Discount cap exceeded'
+        status:
           type: integer
-        rejectedBeneficiaries:
-          type: integer
+          example: 422
+        detail:
+          type: string
+          example: 'Non-judicial discounts exceed 30% of gross amount.'
+        instance:
+          type: string
+          format: uri-reference
+          example: '/api/v1/payments/8a47ec19-3a0c-4f2c-9c74-2c6a8f4f4a91/discounts'
+        traceId:
+          type: string
+          example: '00-3a8c91f5-…'
+        violations:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+                example: 'amount'
+              message:
+                type: string
+                example: 'must be positive'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: REQ-SEC-001 — JWT emitido por OAuth2 corporativo
+
+security:
+  - bearerAuth: []
