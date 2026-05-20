@@ -4,9 +4,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin/programs")
+@CrossOrigin(origins = "*")
 public class AdminController {
 
     private final AdminService service;
@@ -25,5 +27,10 @@ public class AdminController {
     @GetMapping("/{id}")
     public SocialProgram get(@PathVariable Long id) {
         return service.findById(id);
+    }
+
+    @GetMapping
+    public List<SocialProgram> list() {
+        return service.listAll();
     }
 }

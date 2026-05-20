@@ -61,6 +61,11 @@ public class AdminService {
                 .orElseThrow(() -> BusinessException.notFound("Programa não encontrado"));
     }
 
+    @Transactional(readOnly = true)
+    public java.util.List<SocialProgram> listAll() {
+        return repository.findAll();
+    }
+
     /** REQ-ADM-002 + REQ-ADM-003. */
     @Transactional(readOnly = true)
     public EligibilityResult checkEligibility(Beneficiary b, SocialProgram program) {
