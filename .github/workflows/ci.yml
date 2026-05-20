@@ -1,110 +1,217 @@
-name: CI
+name: CIname: CI
 
-on:
-  push:
-    branches: [ main, develop, "spec/**", "impl/**" ]
-  pull_request:
-    branches: [ main, develop ]
 
-# Minimum permissions required for the workflow
-permissions:
-  contents: read
-  pull-requests: read
+
+on:on:
+
+  push:  push:
+
+    branches: [main, develop, "spec/**", "impl/**"]    branches: [ main, develop, "spec/**", "impl/**" ]
+
+  pull_request:  pull_request:
+
+    branches: [main, develop]    branches: [ main, develop ]
+
+
+
+permissions:# Minimum permissions required for the workflow
+
+  contents: readpermissions:
+
+  pull-requests: read  contents: read
+
+  checks: write  pull-requests: read
+
   checks: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+
+  group: ${{ github.workflow }}-${{ github.ref }}concurrency:
+
+  cancel-in-progress: true  group: ${{ github.workflow }}-${{ github.ref }}
+
   cancel-in-progress: true
 
 jobs:
-  detect-changes:
-    name: Detect changed paths
-    runs-on: ubuntu-latest
-    outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
-      infra: ${{ steps.filter.outputs.infra }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            backend:
-              - 'backend/**'
-              - 'pom.xml'
-            frontend:
-              - 'frontend/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-            infra:
+
+  detect-changes:jobs:
+
+    name: Detect changed paths  detect-changes:
+
+    runs-on: ubuntu-latest    name: Detect changed paths
+
+    outputs:    runs-on: ubuntu-latest
+
+      backend: ${{ steps.filter.outputs.backend }}    outputs:
+
+      frontend: ${{ steps.filter.outputs.frontend }}      backend: ${{ steps.filter.outputs.backend }}
+
+      infra: ${{ steps.filter.outputs.infra }}      frontend: ${{ steps.filter.outputs.frontend }}
+
+    steps:      infra: ${{ steps.filter.outputs.infra }}
+
+      - uses: actions/checkout@v4    steps:
+
+      - uses: dorny/paths-filter@v3      - uses: actions/checkout@v4
+
+        id: filter      - uses: dorny/paths-filter@v3
+
+        with:        id: filter
+
+          filters: |        with:
+
+            backend:          filters: |
+
+              - 'pom.xml'            backend:
+
+              - 'src/**'              - 'backend/**'
+
+              - 'Dockerfile'              - 'pom.xml'
+
+            frontend:            frontend:
+
+              - 'frontend/**'              - 'frontend/**'
+
+            infra:              - 'package.json'
+
+              - 'infra/**'              - 'pnpm-lock.yaml'
+
+              - '**/*.tf'            infra:
+
               - 'infra/**'
-              - '**/*.tf'
 
-  backend:
+  backend:              - '**/*.tf'
+
     name: Backend (Java 21 + Spring Boot)
-    needs: detect-changes
-    if: needs.detect-changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: maven
-      - name: Build and test
-        run: ./mvnw -B verify
-      - name: Upload coverage report
+
+    needs: detect-changes  backend:
+
+    if: needs.detect-changes.outputs.backend == 'true'    name: Backend (Java 21 + Spring Boot)
+
+    runs-on: ubuntu-latest    needs: detect-changes
+
+    steps:    if: needs.detect-changes.outputs.backend == 'true'
+
+      - uses: actions/checkout@v4    runs-on: ubuntu-latest
+
+      - name: Set up JDK 21    defaults:
+
+        uses: actions/setup-java@v4      run:
+
+        with:        working-directory: backend
+
+          distribution: temurin    steps:
+
+          java-version: "21"      - uses: actions/checkout@v4
+
+          cache: maven      - name: Set up JDK 21
+
+      - name: Build, test and coverage gate (JaCoCo ≥70%)        uses: actions/setup-java@v4
+
+        run: mvn -B verify        with:
+
+      - name: Upload JaCoCo coverage          distribution: temurin
+
+        if: always()          java-version: "21"
+
+        uses: actions/upload-artifact@v4          cache: maven
+
+        with:      - name: Build and test
+
+          name: backend-coverage        run: ./mvnw -B verify
+
+          path: target/site/jacoco/      - name: Upload coverage report
+
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-coverage
-          path: backend/target/site/jacoco/
 
-  frontend:
-    name: Frontend (Next.js 15 + TypeScript)
-    needs: detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true'
+  frontend:        uses: actions/upload-artifact@v4
+
+    name: Frontend (Next.js 15 + TypeScript)        with:
+
+    needs: detect-changes          name: backend-coverage
+
+    if: needs.detect-changes.outputs.frontend == 'true'          path: backend/target/site/jacoco/
+
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: pnpm
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
+
+    defaults:  frontend:
+
+      run:    name: Frontend (Next.js 15 + TypeScript)
+
+        working-directory: frontend    needs: detect-changes
+
+    steps:    if: needs.detect-changes.outputs.frontend == 'true'
+
+      - uses: actions/checkout@v4    runs-on: ubuntu-latest
+
+      - name: Set up Node 20    defaults:
+
+        uses: actions/setup-node@v4      run:
+
+        with:        working-directory: frontend
+
+          node-version: "20"    steps:
+
+          cache: npm      - uses: actions/checkout@v4
+
+          cache-dependency-path: frontend/package-lock.json      - name: Set up Node 20
+
+      - name: Install dependencies        uses: actions/setup-node@v4
+
+        run: npm ci        with:
+
+      - name: Type-check          node-version: "20"
+
+        run: npx tsc --noEmit          cache: pnpm
+
+      - name: Test (Vitest)      - name: Install pnpm
+
+        run: npm test        uses: pnpm/action-setup@v3
+
+      - name: Build        with:
+
+        run: npm run build          version: 9
+
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Lint
-        run: pnpm lint
-      - name: Type-check
-        run: pnpm typecheck
-      - name: Test
-        run: pnpm test --run --coverage
 
-  infra:
-    name: Infra (Terraform)
-    needs: detect-changes
-    if: needs.detect-changes.outputs.infra == 'true'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
+  infra:        run: pnpm install --frozen-lockfile
+
+    name: Infra (Terraform)      - name: Lint
+
+    needs: detect-changes        run: pnpm lint
+
+    if: needs.detect-changes.outputs.infra == 'true'      - name: Type-check
+
+    runs-on: ubuntu-latest        run: pnpm typecheck
+
+    defaults:      - name: Test
+
+      run:        run: pnpm test --run --coverage
+
         working-directory: infra
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+
+    steps:  infra:
+
+      - uses: actions/checkout@v4    name: Infra (Terraform)
+
+      - uses: hashicorp/setup-terraform@v3    needs: detect-changes
+
+        with:    if: needs.detect-changes.outputs.infra == 'true'
+
+          terraform_version: "1.9.5"    runs-on: ubuntu-latest
+
+      - name: Format check    defaults:
+
+        run: terraform fmt -check -recursive      run:
+
+      - name: Validate        working-directory: infra
+
+        run: |    steps:
+
+          terraform init -backend=false      - uses: actions/checkout@v4
+
+          terraform validate      - uses: hashicorp/setup-terraform@v3
+
         with:
           terraform_version: "1.9.5"
       - name: Format check
