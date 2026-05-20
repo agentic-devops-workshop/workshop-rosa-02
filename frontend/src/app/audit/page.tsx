@@ -6,7 +6,7 @@ import { AuditLog } from "@/components/audit/AuditLog";
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams: { action?: string; entityType?: string };
+  searchParams: Promise<{ action?: string; entityType?: string }>;
 }
 
 async function fetchAudit(action?: string, entityType?: string): Promise<AuditEntry[]> {
@@ -22,7 +22,8 @@ async function fetchAudit(action?: string, entityType?: string): Promise<AuditEn
 }
 
 export default async function AuditPage({ searchParams }: PageProps) {
-  const entries = await fetchAudit(searchParams.action, searchParams.entityType);
+  const sp = await searchParams;
+  const entries = await fetchAudit(sp.action, sp.entityType);
   return (
     <div className="space-y-6">
       <header>
@@ -31,7 +32,7 @@ export default async function AuditPage({ searchParams }: PageProps) {
           REQ-AUD-001: registros são somente leitura. REQ-AUD-002: eventos de exclusão (EX) permanecem visíveis.
         </p>
       </header>
-      <AuditSearch initial={searchParams} />
+      <AuditSearch initial={sp} />
       <AuditLog entries={entries} />
     </div>
   );

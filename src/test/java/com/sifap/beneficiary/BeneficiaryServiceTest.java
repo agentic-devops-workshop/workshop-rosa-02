@@ -32,18 +32,27 @@ class BeneficiaryServiceTest {
     // REQ-BEN-001
     @Test
     void duplicateCpfRejected() {
-        when(repo.existsByCpf("12345678901")).thenReturn(true);
-        BeneficiaryRequest r = new BeneficiaryRequest("12345678901", "X",
+        when(repo.existsByCpf("52998224725")).thenReturn(true);
+        BeneficiaryRequest r = new BeneficiaryRequest("52998224725", "X",
                 LocalDate.of(1970, 1, 1), "SP", "01", BeneficiaryStatus.A);
         BusinessException ex = assertThrows(BusinessException.class, () -> service.create(r));
         assertEquals(409, ex.getStatus().value());
+    }
+
+    // Validação CPF mod-11
+    @Test
+    void invalidCpfRejected() {
+        BeneficiaryRequest r = new BeneficiaryRequest("12345678901", "X",
+                LocalDate.of(1970, 1, 1), "SP", "01", BeneficiaryStatus.A);
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.create(r));
+        assertEquals(400, ex.getStatus().value());
     }
 
     // REQ-BEN-002
     @Test
     void over75IsAutoSuspended() {
         LocalDate birth = LocalDate.now().minusYears(76);
-        BeneficiaryRequest r = new BeneficiaryRequest("12345678901", "X", birth, "SP", "01", BeneficiaryStatus.A);
+        BeneficiaryRequest r = new BeneficiaryRequest("52998224725", "X", birth, "SP", "01", BeneficiaryStatus.A);
         Beneficiary saved = service.create(r);
         assertEquals(BeneficiaryStatus.S, saved.getStatus());
     }
@@ -52,7 +61,7 @@ class BeneficiaryServiceTest {
     @Test
     void exactly75IsActive() {
         LocalDate birth = LocalDate.now().minusYears(75);
-        BeneficiaryRequest r = new BeneficiaryRequest("12345678901", "X", birth, "SP", "01", BeneficiaryStatus.A);
+        BeneficiaryRequest r = new BeneficiaryRequest("52998224725", "X", birth, "SP", "01", BeneficiaryStatus.A);
         Beneficiary saved = service.create(r);
         assertEquals(BeneficiaryStatus.A, saved.getStatus());
     }
@@ -60,7 +69,7 @@ class BeneficiaryServiceTest {
     // REQ-BEN-005
     @Test
     void invalidUfRejected() {
-        BeneficiaryRequest r = new BeneficiaryRequest("12345678901", "X",
+        BeneficiaryRequest r = new BeneficiaryRequest("52998224725", "X",
                 LocalDate.of(1970, 1, 1), "XX", "01", BeneficiaryStatus.A);
         BusinessException ex = assertThrows(BusinessException.class, () -> service.create(r));
         assertEquals(400, ex.getStatus().value());

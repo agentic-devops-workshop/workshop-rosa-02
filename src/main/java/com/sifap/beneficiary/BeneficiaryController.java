@@ -27,6 +27,11 @@ public class BeneficiaryController {
         return service.findById(id);
     }
 
+    @GetMapping
+    public java.util.List<Beneficiary> list() {
+        return service.listAll();
+    }
+
     @PostMapping("/{id}/dependents")
     public ResponseEntity<Dependent> addDependent(@PathVariable Long id, @RequestBody DependentRequest req) {
         Dependent d = service.addDependent(id, req);

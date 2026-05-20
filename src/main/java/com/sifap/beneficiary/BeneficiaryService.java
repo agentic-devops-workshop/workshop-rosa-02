@@ -28,6 +28,11 @@ public class BeneficiaryService {
     /** REQ-BEN-001 + REQ-BEN-002 + REQ-BEN-005 + REQ-BEN-006. */
     @Transactional
     public Beneficiary create(BeneficiaryRequest req) {
+        // Validação de formação CPF (mod-11). REQ-BEN-006: prefixos especiais passam por bypass dentro de isValid().
+        if (!CpfUtils.isValid(req.cpf())) {
+            throw BusinessException.badRequest("CPF inválido (falha na regra de formação mod-11)");
+        }
+
         // REQ-BEN-001: CPF único, independente de status.
         if (repository.existsByCpf(req.cpf())) {
             throw BusinessException.conflict("CPF já cadastrado");
@@ -104,6 +109,11 @@ public class BeneficiaryService {
     public Beneficiary findById(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> BusinessException.notFound("Beneficiário não encontrado"));
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<Beneficiary> listAll() {
+        return repository.findAll();
     }
 
     private int ageOf(LocalDate birth) {
