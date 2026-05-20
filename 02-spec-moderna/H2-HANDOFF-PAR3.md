@@ -11,12 +11,13 @@ Entregar ao Par 3 o pacote arquitetural e de requisitos já aprovado para iníci
 
 ## Artefatos de referência
 
-- [SPECIFICATION.md](SPECIFICATION.md)
-- [C4-DIAGRAMS.md](C4-DIAGRAMS.md)
-- [ADR-001-monolito-modular.md](ADR-001-monolito-modular.md)
-- [ADR-002-estrategia-integracao.md](ADR-002-estrategia-integracao.md)
-- [ADR-003-auditoria-imutavel.md](ADR-003-auditoria-imutavel.md)
-- [scope-decisions.md](scope-decisions.md)
+- [SPECIFICATION.md](SPECIFICATION.md) — 17 REQ-IDs com EARS + source_legacy
+- [C4-DIAGRAMS.md](C4-DIAGRAMS.md) — Contexto, containers e componentes
+- [ADR-001-monolito-modular.md](ADR-001-monolito-modular.md) — Arquitetura: modular monolith
+- [ADR-002-estrategia-integracao.md](ADR-002-estrategia-integracao.md) — Integração com Banco do Brasil e SIAFI
+- [ADR-003-auditoria-imutavel.md](ADR-003-auditoria-imutavel.md) — Auditoria append-only
+- [FRONTEND-SPECS.md](FRONTEND-SPECS.md) — Telas, componentes e fluxos de UI
+- [scope-decisions.md](scope-decisions.md) — Decisões de escopo já aprovadas
 
 ## Texto de repasse
 
