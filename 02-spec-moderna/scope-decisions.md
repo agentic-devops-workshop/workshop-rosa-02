@@ -23,10 +23,10 @@
 > - **Descartar**: não trazer — funcionalidade obsoleta ou desnecessária
 > - **Evoluir**: trazer E melhorar (nova UX, novo fluxo, nova capacidade)
 
-**Time**: [Nome do Time]
-**Data**: 19/05/2026
-**Edição**:
-**Par 1 (Product Owner) responsável**: [Nome]
+**Time**: workshop-rosa-02
+**Data**: 20/05/2026
+**Edição**: Estágio 2 — Passagem H2
+**Par 1 (Product Owner) responsável**: Par 1 (PO)
 
 ## Por que isso importa
 
@@ -47,18 +47,18 @@ Pergunte de cada funcionalidade:
 
 | #   | Funcionalidade            | Decisão                      | Justificativa | Regra de Negócio (BR-XXX) | Prioridade           |
 | --- | ------------------------- | ---------------------------- | ------------- | ------------------------- | -------------------- |
-| 1   | Cadastro de Beneficiários | Migrar / Descartar / Evoluir |               |                           | Alta / Média / Baixa |
-| 2   | Consulta de Beneficiários |                              |               |                           |                      |
-| 3   | Registro de Pagamentos    |                              |               |                           |                      |
-| 4   | Processamento Batch       |                              |               |                           |                      |
-| 5   | Cálculo de Benefícios     |                              |               |                           |                      |
-| 6   | Validação de CPF          |                              |               |                           |                      |
-| 7   | Relatórios                |                              |               |                           |                      |
-| 8   | Auditoria                 |                              |               |                           |                      |
-| 9   | Gestão de Usuários        |                              |               |                           |                      |
-| 10  |                           |                              |               |                           |                      |
-| 11  |                           |                              |               |                           |                      |
-| 12  |                           |                              |               |                           |                      |
+| 1   | Cadastro de Beneficiários | Migrar | Núcleo de domínio; impacta elegibilidade e pagamento. | BR-001, BR-002, BR-008 | Alta |
+| 2   | Consulta de Beneficiários | Evoluir | Manter regra de negócio e melhorar filtros/mascara de dados. | BR-008 | Média |
+| 3   | Registro de Pagamentos    | Migrar | Fluxo crítico mensal e base de conciliação. | BR-006 | Alta |
+| 4   | Processamento Batch       | Migrar | Processo essencial do ciclo operacional. | BR-006, BR-010 | Alta |
+| 5   | Cálculo de Benefícios     | Evoluir | Preservar legado e explicitar fator K para reduzir risco oculto. | BR-006 | Alta |
+| 6   | Validação de CPF          | Migrar | Regras com exceções legadas obrigatórias. | BR-009, BR-015 | Alta |
+| 7   | Relatórios                | Evoluir | Corrigir visibilidade (incluindo eventos de exclusão). | BR-010 | Média |
+| 8   | Auditoria                 | Migrar | Exigência de conformidade e rastreabilidade. | BR-010 | Alta |
+| 9   | Gestão de Usuários        | Evoluir | Legado não cobre API moderna; adequar a segurança atual. | [GREENFIELD] | Média |
+| 10  | Conciliação Financeira    | Migrar | Fechamento financeiro e status de pagamento. | BR-006 | Alta |
+| 11  | Fator K (governança)      | Evoluir | Tornar regra explícita/parametrizável e auditável no moderno. | BR-006 | Alta |
+| 12  | Integração Banco Real     | Descartar | Integração legada descontinuada e fora do valor atual. | [LEGADO OBSOLETO] | Baixa |
 
 > Adicione linhas para cada funcionalidade identificada no `discovery-report.md` do Estágio 1.
 
@@ -70,9 +70,9 @@ Pergunte de cada funcionalidade:
 
 | #   | Funcionalidade Nova | Justificativa | Prioridade | Complexidade |
 | --- | ------------------- | ------------- | ---------- | ------------ |
-| N1  |                     |               |            |              |
-| N2  |                     |               |            |              |
-| N3  |                     |               |            |              |
+| N1  | Autenticação JWT/OAuth2 para API | Legado por sessão terminal não atende arquitetura moderna de APIs. | Alta | Média |
+| N2  | Trilha de auditoria API com consulta estruturada | Garantir visibilidade completa e conformidade regulatória. | Alta | Média |
+| N3  | Parametrização explícita do fator K | Reduz risco de regra implícita não documentada no cálculo. | Alta | Alta |
 
 ---
 
@@ -80,9 +80,9 @@ Pergunte de cada funcionalidade:
 
 | Decisão   | Quantidade | Percentual |
 | --------- | ---------- | ---------- |
-| Migrar    |            |            |
-| Descartar |            |            |
-| Evoluir   |            |            |
+| Migrar    | 5          | 41,7%      |
+| Descartar | 1          | 8,3%       |
+| Evoluir   | 6          | 50,0%      |
 | **Total** |            | 100%       |
 
 ## Riscos de Escopo
@@ -91,14 +91,18 @@ Pergunte de cada funcionalidade:
 
 | Risco | Probabilidade        | Impacto              | Mitigação |
 | ----- | -------------------- | -------------------- | --------- |
-|       | Alta / Média / Baixa | Alto / Médio / Baixo |           |
+| Fator K não documentado gerar divergência de cálculo | Alta | Alto | Criar requisito dedicado (REQ-ADM-004) com regra explícita e validação com Par 1/Par 2 antes da implementação. |
+| Ambiguidade entre valor base ajustado e reajuste anual | Média | Alto | Definir ordem de cálculo na spec e validar com testes de regressão do legado. |
+| Escopo exceder janela do Estágio 3 | Média | Médio | Priorizar P0 e postergar evoluções não críticas para backlog. |
 
 ## Aprovação
 
-- [ ] Par 1 (Product Owner) aprovou as decisões de escopo
+- [x] Par 1 (Product Owner) aprovou as decisões de escopo
 - [ ] Par 2 (Enterprise Architect) validou a viabilidade técnica
 - [ ] Par 3 (Technical Lead) confirmou que cabe nas 3 horas do Estágio 3
 - [ ] Time concordou com as prioridades
+
+**Assinatura PO (Par 1):** Aprovado em 20/05/2026 com condicionante de formalização do fator K em REQ dedicado antes do início da implementação.
 
 > **Aprovação obrigatória na Passagem #2** (~16:00). Sem ela, o Estágio 3 não começa.
 

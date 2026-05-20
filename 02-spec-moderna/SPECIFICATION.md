@@ -398,6 +398,6 @@ REQ-AUD-002:
 ## Itens pendentes de validação (antes do sign-off H2)
 
 - [ ] Par 1 (PO) confirmar prioridade P0/P1 de cada REQ-ID acima
-- [ ] Investigar `FATOR-K` (campo BG do DDM PROGRAMA-SOCIAL, inserido 2008 sem doc) — pode exigir REQ-ADM-004
+- [x] Investigar `FATOR-K` (campo BG do DDM PROGRAMA-SOCIAL, inserido 2008 sem doc): evidência encontrada em `CADPROG.NSN#L87-L88` (cálculo implícito) e `PROGRAMA-SOCIAL.ddm#L39` (campo BG); PO condiciona implementação à formalização de REQ-ADM-004
 - [ ] Confirmar com Par 4 (DBA) política de particionamento do schema `audit` para suportar retenção de 10 anos
 - [ ] Alinhar com Par 3 (TL/Dev) se a ordenação por CPF no batch (REQ-PAY-005) tem impacto de performance no PostgreSQL
