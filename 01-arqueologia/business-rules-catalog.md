@@ -68,7 +68,7 @@ O que NÃO conta: paginação de relatório, formatação de saída, manipulaç�
 
 | ID     | Regra de Negócio                                                                        | Programa Fonte                                   | Campos DDM                                                               | Nível de Risco | Notas                                      |
 | ------ | --------------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------ | -------------- | ------------------------------------------ |
-| BR-013 | Desconto total não pode exceder 30% do valor bruto, exceto descontos judiciais (tipo J) | `01-arqueologia/legado-sifap/natural-programs/CALCDSCT.NSN#L142-L148` | `PAGAMENTO.VLR-BRUTO`, `PAGAMENTO.VLR-TOTAL-DSCT`, `PAGAMENTO.TIPO-DSCT` | CRÍTICO        | Regra financeira. Tipo 'J' = exceção legal |
+| BR-EX-001 | Desconto total não pode exceder 30% do valor bruto, exceto descontos judiciais (tipo J) | `01-arqueologia/legado-sifap/natural-programs/CALCDSCT.NSN#L142-L148` | `PAGAMENTO.VLR-BRUTO`, `PAGAMENTO.VLR-TOTAL-DSCT`, `PAGAMENTO.TIPO-DSCT` | CRÍTICO        | Exemplo ilustrativo. Não reutilizar IDs reais do catálogo principal. |
 
 ## Regras por Categoria
 
@@ -94,6 +94,11 @@ O que NÃO conta: paginação de relatório, formatação de saída, manipulaç�
 - Regras críticas: 1
 - Regras com duplicação: 0
 - Regras sem documentação (escondidas): 3
+
+## Nota de Governança (Par 1)
+
+- Antes de derivar novos `REQ-IDs` no Estágio 2, o Par 1 deve validar que não há colisão de IDs no catálogo (`BR-XXX`) e que exemplos não reutilizam IDs reais.
+- Qualquer ajuste de identificação de regra deve ser registrado primeiro no catálogo e só então propagado para a spec moderna.
 
 ---
 
