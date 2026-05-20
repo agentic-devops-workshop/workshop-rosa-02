@@ -84,7 +84,7 @@ clone_or_pull() {
 }
 
 # Adjust these URLs to your fork or org
-WORKSHOP_REPO="${WORKSHOP_REPO:-https://github.com/paulasilvatech/workshop-datacorp.git}"
+WORKSHOP_REPO="${WORKSHOP_REPO:-https://github.com/paulasilvatech/workshop-legacy-modernization-datacorp.git}"
 
 if [ ! -d "reference/workshop-datacorp" ]; then
   clone_or_pull "$WORKSHOP_REPO" "reference/workshop-datacorp"
